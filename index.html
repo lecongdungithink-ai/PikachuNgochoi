@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CLB Pickleball Pikachu Ngọc Hồi</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏓</text></svg>">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#f5f5f2;--card:#fff;--tx:#1d1d1b;--mu:#6b6b64;--ac:#f5c400;--on:#1d1d1b;--bd:#e3e3dc;--bad:#c92a2a}
+@media (prefers-color-scheme:dark){:root{--bg:#141412;--card:#1e1e1b;--tx:#f1f1ea;--mu:#a1a198;--bd:#33332e;--bad:#ff8787}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+main{max-width:720px;margin:0 auto;padding:12px}
+h1{font-size:20px;margin:6px 0 2px}h2{font-size:16px;margin:0 0 8px}
+nav{display:flex;gap:6px;margin:10px 0;overflow-x:auto}
+nav button{flex:1;white-space:nowrap;padding:9px 10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;font:inherit;cursor:pointer}
+nav button.on{background:var(--ac);color:var(--on);border-color:var(--ac);font-weight:700}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;margin-bottom:12px}
+input,select{width:100%;padding:9px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
+.row{display:flex;gap:8px;margin-bottom:8px}.row>*{flex:1}
+.btn{padding:10px 14px;border:0;border-radius:8px;background:var(--ac);color:var(--on);font:inherit;font-weight:700;cursor:pointer;width:100%}
+.btn.alt{background:var(--bg);border:1px solid var(--bd);color:var(--tx);font-weight:500}
+.x{background:none;border:0;color:var(--bad);cursor:pointer;font-size:13px;width:auto;padding:2px 6px}.x.e{color:var(--tx);text-decoration:underline}
+.tbl{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:7px 5px;text-align:left;border-bottom:1px solid var(--bd);white-space:nowrap}th{color:var(--mu);font-weight:600;font-size:12px}
+.tag{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;font-weight:700;background:var(--ac);color:var(--on)}
+.tag.B{opacity:.8}.tag.C{opacity:.6}.tag.D{opacity:.45}
+.mu{color:var(--mu);font-size:13px}.err{color:var(--bad);font-size:13px;min-height:18px;margin-top:6px}
+.vs{display:flex;align-items:center;gap:8px;margin:6px 0}.vs>div{flex:1}.vs b{color:var(--mu)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+<h1>🏓 CLB Pickleball Pikachu Ngọc Hồi</h1>
+
+<div class="card" id="auth">
+  <div id="authForm">
+    <div class="row"><input id="email" type="email" placeholder="Email" autocomplete="email"><input id="pw" type="password" placeholder="Mật khẩu (từ 6 ký tự)" autocomplete="current-password"></div>
+    <div class="row"><button class="btn" id="login">Đăng nhập</button><button class="btn alt" id="signup">Tạo tài khoản</button></div>
+  </div>
+  <div id="authInfo" hidden><span id="who"></span> <button class="x e" id="logout">Đăng xuất</button></div>
+  <div class="err" id="aerr"></div>
+</div>
+
+<nav id="nav"><button data-t="rank" class="on">Xếp hạng</button><button data-t="match">Nhập trận</button><button data-t="sug">Gợi ý</button><button data-t="mem">Thành viên</button></nav>
+
+<section id="t-rank" class="card"><h2>Bảng xếp hạng</h2><div class="tbl" id="rank"></div>
+<p class="mu">Điểm khởi đầu 1000, tính kiểu Elo theo trình đôi. Hạng: A ≥ 1060, B 980–1059, C 900–979, D &lt; 900. Dấu * là dưới 3 trận, chưa ổn định.</p></section>
+
+<section id="t-match" class="card" hidden><h2>Nhập kết quả trận</h2>
+<p class="mu" id="needLogin">Hãy đăng nhập và đăng ký thành viên để nhập trận.</p>
+<div id="matchForm">
+<div class="row"><select id="mtype"><option value="MD">Đôi nam – nam</option><option value="XD">Đôi nam – nữ</option><option value="WD">Đôi nữ – nữ</option></select></div>
+<div class="mu">Đội 1</div><div class="row"><select id="a1"></select><select id="a2"></select><input id="sa" type="number" min="0" placeholder="Điểm" inputmode="numeric"></div>
+<div class="mu">Đội 2</div><div class="row"><select id="b1"></select><select id="b2"></select><input id="sb" type="number" min="0" placeholder="Điểm" inputmode="numeric"></div>
+<button class="btn" id="addMatch">Lưu kết quả</button><div class="err" id="merr"></div></div>
+<h2 style="margin-top:14px">Trận gần đây</h2><div id="recent"></div></section>
+
+<section id="t-sug" class="card" hidden><h2>Gợi ý trận tiếp theo</h2>
+<div class="row"><select id="stype"><option value="MD">Đôi nam – nam</option><option value="XD">Đôi nam – nữ</option><option value="WD">Đôi nữ – nữ</option></select></div>
+<p class="mu">Ưu tiên người lâu chưa đánh, cùng trình (chênh ≤ 150 điểm), chia đội cân bằng nhất.</p><div id="sug"></div></section>
+
+<section id="t-mem" class="card" hidden><h2>Đăng ký thành viên</h2>
+<p class="mu" id="memHint"></p>
+<div id="regForm"><div class="row"><input id="mname" placeholder="Họ tên / biệt danh" maxlength="40"><select id="mg"><option value="M">Nam</option><option value="F">Nữ</option></select></div>
+<button class="btn" id="addMem">Đăng ký</button></div><div class="err" id="eerr"></div>
+<h2 style="margin-top:14px">Danh sách (<span id="cnt">0</span>)</h2><div id="mlist"></div></section>
+</main>
+
+<script>
+// ====== ĐIỀN 2 DÒNG NÀY (Supabase > Project Settings > API) ======
+const SUPABASE_URL = 'https://feyksklghawdljiqopov.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_Uo0y8bmy3zFD2d1pRxSLpQ_JAHrCjUY';
+// ================================================================
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const TN = {MD:'Nam–Nam', XD:'Nam–Nữ', WD:'Nữ–Nữ'};
+const tier = r => r>=1060?'A':r>=980?'B':r>=900?'C':'D';
+let session = null, members = [], matches = [], me = null, prefilled = false;
+const isAdmin = () => !!(me && me.is_admin);
+
+async function load() {
+  const [p, m] = await Promise.all([db.from('profiles').select('*'), db.from('matches').select('*').order('created_at')]);
+  members = (p.data || []).map(r => ({...r, g: r.gender}));
+  matches = (m.data || []).map(r => ({id:r.id, type:r.type, a:[r.a1,r.a2], b:[r.b1,r.b2], sa:r.sa, sb:r.sb, ts:Date.parse(r.created_at)}));
+  me = session ? members.find(x => x.user_id === session.user.id) || null : null;
+  refresh();
+}
+
+function calc() {
+  const P = {}; members.forEach(m => P[m.id] = {...m, r:1000, w:0, l:0, pd:0, n:0, last:0});
+  matches.forEach(m => {
+    const A = m.a.map(i => P[i]), B = m.b.map(i => P[i]);
+    if (A.includes(undefined) || B.includes(undefined)) return;
+    const ra = (A[0].r+A[1].r)/2, rb = (B[0].r+B[1].r)/2, ea = 1/(1+Math.pow(10,(rb-ra)/400));
+    const win = m.sa > m.sb ? 1 : 0, mar = Math.min(1.5, 1+Math.abs(m.sa-m.sb)/15), d = 32*mar*(win-ea);
+    A.forEach(p => {p.r += d; p.n++; p.pd += m.sa-m.sb; win ? p.w++ : p.l++; p.last = m.ts});
+    B.forEach(p => {p.r -= d; p.n++; p.pd += m.sb-m.sa; win ? p.l++ : p.w++; p.last = m.ts});
+  });
+  return Object.values(P);
+}
+
+function suggest(type, ps) {
+  const used = new Set(), out = [];
+  const pool = ps.filter(p => type=='MD' ? p.g=='M' : type=='WD' ? p.g=='F' : true).sort((a,b) => a.last-b.last);
+  for (const s of pool) {
+    if (used.has(s.id)) continue;
+    const near = (arr, n) => arr.filter(p => p.id!=s.id && !used.has(p.id)).sort((a,b) => Math.abs(a.r-s.r)-Math.abs(b.r-s.r)).slice(0,n);
+    let four, splits;
+    if (type=='XD') {
+      const same = near(pool.filter(p => p.g==s.g),1), oth = near(pool.filter(p => p.g!=s.g),2);
+      if (same.length<1 || oth.length<2) continue;
+      four = [s,...same,...oth]; const [a,b,c,d] = four; splits = [[[a,c],[b,d]],[[a,d],[b,c]]];
+    } else {
+      const o = near(pool,3); if (o.length<3) continue;
+      four = [s,...o]; const [a,b,c,d] = four; splits = [[[a,b],[c,d]],[[a,c],[b,d]],[[a,d],[b,c]]];
+    }
+    const rs = four.map(p => p.r); if (Math.max(...rs)-Math.min(...rs) > 150) continue;
+    const avg = t => (t[0].r+t[1].r)/2;
+    splits.sort((x,y) => Math.abs(avg(x[0])-avg(x[1]))-Math.abs(avg(y[0])-avg(y[1])));
+    four.forEach(p => used.add(p.id)); out.push(splits[0]);
+    if (out.length >= 6) break;
+  }
+  return out;
+}
+
+const nm = (ps,id) => { const p = ps.find(x => x.id==id); return p ? esc(p.name) : '?'; };
+
+function refresh() {
+  const ps = calc().sort((a,b) => b.r-a.r), adm = isAdmin();
+  $('#authForm').hidden = !!session; $('#authInfo').hidden = !session;
+  if (session) $('#who').textContent = session.user.email + (adm ? ' · Admin' : me ? '' : ' · chưa đăng ký thành viên');
+  $('#rank').innerHTML = ps.length ? `<table><tr><th>#</th><th>Tên</th><th>Hạng</th><th>Điểm</th><th>T-B</th><th>+/−</th></tr>${ps.map((p,i) => `<tr><td>${i+1}</td><td>${esc(p.name)} <span class="mu">${p.g=='M'?'♂':'♀'}${p.n<3?' *':''}</span></td><td><span class="tag ${tier(p.r)}">${tier(p.r)}</span></td><td><b>${Math.round(p.r)}</b></td><td>${p.w}-${p.l}</td><td>${p.pd>0?'+':''}${p.pd}</td></tr>`).join('')}</table>` : '<p class="mu">Chưa có thành viên.</p>';
+  $('#cnt').textContent = members.length;
+  $('#mlist').innerHTML = members.map(m => `<div class="mu">${m.g=='M'?'♂':'♀'} ${esc(m.name)}${m.is_admin?' (admin)':''}${adm?` <button class="x e" data-ed="${m.id}">sửa</button><button class="x" data-rm="${m.id}">xóa</button>`:''}</div>`).join('');
+  $('#regForm').hidden = !session || (!!me && !adm);
+  $('#memHint').textContent = !session ? 'Hãy đăng nhập (hoặc tạo tài khoản) rồi quay lại đây để đăng ký.' : me ? (adm ? 'Bạn là admin: có thể đăng ký hộ thành viên khác.' : 'Bạn đã đăng ký: ' + me.name) : '';
+  const canPlay = !!session && !!me;
+  $('#matchForm').hidden = !canPlay; $('#needLogin').hidden = canPlay;
+  const type = $('#mtype').value, need = type=='MD' ? ['M'] : type=='WD' ? ['F'] : ['M','F'];
+  const opt = g => '<option value="">— chọn —</option>' + ps.filter(p => g.includes(p.g)).sort((a,b) => a.name.localeCompare(b.name)).map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  const slots = {a1:need[0], a2:need[need.length-1], b1:need[0], b2:need[need.length-1]};
+  for (const k in slots) { const el = $('#'+k), v = el.value; el.innerHTML = opt([slots[k]]); if ([...el.options].some(o => o.value==v)) el.value = v; }
+  if (me && !prefilled && [...$('#a1').options].some(o => o.value==me.id)) { $('#a1').value = me.id; prefilled = true; }
+  $('#recent').innerHTML = [...matches].sort((a,b) => b.ts-a.ts).slice(0,10).map(m => `<div class="mu" style="margin-bottom:6px">${TN[m.type]}: <b>${nm(ps,m.a[0])}/${nm(ps,m.a[1])}</b> ${m.sa}–${m.sb} <b>${nm(ps,m.b[0])}/${nm(ps,m.b[1])}</b>${adm?` <button class="x e" data-em="${m.id}">sửa</button><button class="x" data-del="${m.id}">xóa</button>`:''}</div>`).join('') || '<p class="mu">Chưa có trận nào.</p>';
+  const sg = suggest($('#stype').value, ps), avg = t => (t[0].r+t[1].r)/2;
+  $('#sug').innerHTML = sg.map(([x,y]) => { const pr = Math.round(100/(1+Math.pow(10,(avg(y)-avg(x))/400))); return `<div class="card" style="margin-bottom:8px"><div class="vs"><div><b>${esc(x[0].name)} / ${esc(x[1].name)}</b><div class="mu">TB ${Math.round(avg(x))}</div></div><b>vs</b><div><b>${esc(y[0].name)} / ${esc(y[1].name)}</b><div class="mu">TB ${Math.round(avg(y))}</div></div></div><div class="mu">Tỷ lệ thắng dự kiến ${pr}% – ${100-pr}%</div></div>`; }).join('') || '<p class="mu">Chưa đủ người cùng trình để gợi ý (cần 4 người, chênh lệch điểm ≤ 150).</p>';
+}
+
+// ---- Đăng nhập ----
+const authErr = e => $('#aerr').textContent = e ? e.message : '';
+$('#login').onclick = async () => { const {error} = await db.auth.signInWithPassword({email:$('#email').value.trim(), password:$('#pw').value}); authErr(error); };
+$('#signup').onclick = async () => { const {data, error} = await db.auth.signUp({email:$('#email').value.trim(), password:$('#pw').value}); authErr(error); if (!error && !data.session) $('#aerr').textContent = 'Hãy kiểm tra email để xác nhận tài khoản.'; };
+$('#logout').onclick = () => db.auth.signOut();
+db.auth.onAuthStateChange((_e, s) => { session = s; load(); });
+
+// ---- Giao diện ----
+$('#nav').onclick = e => { const t = e.target.dataset.t; if (!t) return;
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.t==t));
+  ['rank','match','sug','mem'].forEach(k => $('#t-'+k).hidden = k!=t); };
+$('#mtype').onchange = refresh; $('#stype').onchange = refresh;
+document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+
+// ---- Thành viên ----
+$('#addMem').onclick = async () => {
+  const name = $('#mname').value.trim(); if (!name) return $('#eerr').textContent = 'Vui lòng nhập tên.';
+  const row = {name, gender:$('#mg').value, user_id: me ? null : session.user.id};
+  const {error} = await db.from('profiles').insert(row);
+  $('#eerr').textContent = error ? (error.code=='23505' ? 'Tên này đã có người đăng ký.' : error.message) : '';
+  if (!error) { $('#mname').value = ''; load(); }
+};
+$('#mlist').onclick = async e => {
+  const d = e.target.dataset, m = members.find(x => x.id==(d.ed||d.rm)); if (!m || !isAdmin()) return;
+  let error;
+  if (d.rm) { if (!confirm('Xóa thành viên '+m.name+' (kèm các trận của họ)?')) return; ({error} = await db.from('profiles').delete().eq('id', m.id)); }
+  else {
+    const name = (prompt('Tên mới', m.name) || '').trim(); if (!name) return;
+    const g = (prompt('Giới tính: M = nam, F = nữ', m.g) || '').toUpperCase(); if (g!='M' && g!='F') return alert('Chỉ nhập M hoặc F');
+    ({error} = await db.from('profiles').update({name, gender:g}).eq('id', m.id));
+  }
+  if (error) alert(error.message); else load();
+};
+
+// ---- Trận đấu ----
+$('#addMatch').onclick = async () => {
+  const a = [$('#a1').value,$('#a2').value], b = [$('#b1').value,$('#b2').value], sa = +$('#sa').value, sb = +$('#sb').value, er = $('#merr');
+  if ([...a,...b].some(v => !v)) return er.textContent = 'Hãy chọn đủ 4 người chơi.';
+  if (new Set([...a,...b]).size < 4) return er.textContent = 'Mỗi người chỉ xuất hiện một lần.';
+  if ($('#sa').value==='' || $('#sb').value==='' || sa===sb || sa<0 || sb<0) return er.textContent = 'Nhập tỷ số hợp lệ (không hòa).';
+  const g = id => members.find(x => x.id==id).g, type = $('#mtype').value;
+  const ok = type=='MD' ? [...a,...b].every(i => g(i)=='M') : type=='WD' ? [...a,...b].every(i => g(i)=='F') : g(a[0])!=g(a[1]) && g(b[0])!=g(b[1]);
+  if (!ok) return er.textContent = 'Giới tính người chơi không khớp loại đôi.';
+  const {error} = await db.from('matches').insert({type, a1:a[0], a2:a[1], b1:b[0], b2:b[1], sa, sb});
+  er.textContent = error ? error.message : '';
+  if (!error) { $('#sa').value = $('#sb').value = ''; load(); }
+};
+$('#recent').onclick = async e => {
+  const d = e.target.dataset, m = matches.find(x => x.id==(d.del||d.em)); if (!m || !isAdmin()) return;
+  let error;
+  if (d.del) { if (!confirm('Xóa trận này?')) return; ({error} = await db.from('matches').delete().eq('id', m.id)); }
+  else {
+    const v = prompt('Sửa tỷ số (Đội 1-Đội 2), ví dụ 11-8', m.sa+'-'+m.sb); if (!v) return;
+    const [x,y] = v.split('-').map(Number); if (isNaN(x) || isNaN(y) || x===y || x<0 || y<0) return alert('Tỷ số không hợp lệ');
+    ({error} = await db.from('matches').update({sa:x, sb:y}).eq('id', m.id));
+  }
+  if (error) alert(error.message); else load();
+};
+
+refresh(); load();
+</script>
+</body>
+</html>
