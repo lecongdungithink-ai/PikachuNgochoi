@@ -47,6 +47,7 @@ th,td{padding:7px 5px;text-align:left;border-bottom:1px solid var(--bd);white-sp
 <nav id="nav"><button data-t="rank" class="on">Xếp hạng</button><button data-t="match">Nhập trận</button><button data-t="sug">Gợi ý</button><button data-t="mem">Thành viên</button></nav>
 
 <section id="t-rank" class="card"><h2>Bảng xếp hạng</h2><div class="tbl" id="rank"></div>
+<div id="extra" hidden></div>
 <p class="mu">Điểm khởi đầu 1000, tính kiểu Elo theo trình đôi. Hạng: A ≥ 1060, B 980–1059, C 900–979, D &lt; 900. Dấu * là dưới 3 trận, chưa ổn định.</p></section>
 
 <section id="t-match" class="card" hidden><h2>Nhập kết quả trận</h2>
@@ -91,12 +92,15 @@ async function load() {
 }
 
 function calc() {
-  const P = {}; members.forEach(m => P[m.id] = {...m, r:1000, w:0, l:0, pd:0, n:0, last:0});
+  const P = {}; members.forEach(m => P[m.id] = {...m, r:1000, w:0, l:0, pd:0, n:0, last:0, t:{MD:{r:1000,w:0,l:0,n:0}, XD:{r:1000,w:0,l:0,n:0}, WD:{r:1000,w:0,l:0,n:0}}});
   matches.forEach(m => {
     const A = m.a.map(i => P[i]), B = m.b.map(i => P[i]);
     if (A.includes(undefined) || B.includes(undefined)) return;
     const ra = (A[0].r+A[1].r)/2, rb = (B[0].r+B[1].r)/2, ea = 1/(1+Math.pow(10,(rb-ra)/400));
     const win = m.sa > m.sb ? 1 : 0, mar = Math.min(1.5, 1+Math.abs(m.sa-m.sb)/15), d = 32*mar*(win-ea);
+    const T = m.type, ta = (A[0].t[T].r+A[1].t[T].r)/2, tb = (B[0].t[T].r+B[1].t[T].r)/2, d2 = 32*mar*(win-1/(1+Math.pow(10,(tb-ta)/400)));
+    A.forEach(p => {const q = p.t[T]; q.r += d2; q.n++; win ? q.w++ : q.l++});
+    B.forEach(p => {const q = p.t[T]; q.r -= d2; q.n++; win ? q.l++ : q.w++});
     A.forEach(p => {p.r += d; p.n++; p.pd += m.sa-m.sb; win ? p.w++ : p.l++; p.last = m.ts});
     B.forEach(p => {p.r -= d; p.n++; p.pd += m.sb-m.sa; win ? p.l++ : p.w++; p.last = m.ts});
   });
@@ -129,11 +133,28 @@ function suggest(type, ps) {
 
 const nm = (ps,id) => { const p = ps.find(x => x.id==id); return p ? esc(p.name) : '?'; };
 
+function renderExtra(ps) {
+  const box = $('#extra'); box.hidden = !session; if (!session) return;
+  const top = g => ps.filter(p => p.g == g).sort((a,b) => b.r-a.r).slice(0,3), medal = ['🥇','🥈','🥉'];
+  const fmt = arr => arr.length ? arr.map((p,i) => { const n = esc(p.name); return `<div>${medal[i]} ${me && p.id==me.id ? `<b>${n} (bạn)</b>` : n} <span class="mu">– ${Math.round(p.r)} · hạng ${tier(p.r)}</span></div>`; }).join('') : '<div class="mu">Chưa có dữ liệu</div>';
+  let h = `<h2 style="margin-top:14px">Top 3</h2><div class="row"><div><div class="mu">Nam</div>${fmt(top('M'))}</div><div><div class="mu">Nữ</div>${fmt(top('F'))}</div></div>`;
+  if (!me) { box.innerHTML = h + '<p class="mu">Đăng ký thành viên để xem xếp hạng cặp đôi của bạn.</p>'; return; }
+  const L = {MD:'Đôi nam – nam', XD:'Đôi nam – nữ', WD:'Đôi nữ – nữ'};
+  (me.g == 'M' ? ['MD','XD'] : ['WD','XD']).forEach(t => {
+    const rk = ps.filter(p => p.t[t].n > 0 && (t == 'XD' || p.g == (t == 'MD' ? 'M' : 'F'))).sort((a,b) => b.t[t].r-a.t[t].r);
+    const mi = rk.findIndex(p => p.id == me.id), show = [...new Set([...rk.slice(0,5).map((_,i) => i), ...(mi >= 0 ? [mi] : [])])];
+    h += `<h2 style="margin-top:14px">${L[t]}</h2>` + (mi >= 0 ? `<div class="mu">Hạng của bạn: <b>#${mi+1}</b> / ${rk.length} người</div>` : '<div class="mu">Bạn chưa thi đấu nội dung này.</div>');
+    h += rk.length ? `<div class="tbl"><table><tr><th>#</th><th>Tên</th><th>Điểm</th><th>T-B</th></tr>${show.map(i => { const p = rk[i], q = p.t[t], you = p.id == me.id, n = esc(p.name); return `<tr><td>${i+1}</td><td>${you ? `<b>${n}</b>` : n}</td><td>${you ? `<b>${Math.round(q.r)}</b>` : Math.round(q.r)}</td><td>${q.w}-${q.l}</td></tr>`; }).join('')}</table></div>` : '<div class="mu">Chưa có trận nào.</div>';
+  });
+  box.innerHTML = h;
+}
+
 function refresh() {
   const ps = calc().sort((a,b) => b.r-a.r), adm = isAdmin();
   $('#authForm').hidden = !!session; $('#authInfo').hidden = !session;
   if (session) $('#who').textContent = session.user.email + (adm ? ' · Admin' : me ? '' : ' · chưa đăng ký thành viên');
   $('#rank').innerHTML = ps.length ? `<table><tr><th>#</th><th>Tên</th><th>Hạng</th><th>Điểm</th><th>T-B</th><th>+/−</th></tr>${ps.map((p,i) => `<tr><td>${i+1}</td><td>${esc(p.name)} <span class="mu">${p.g=='M'?'♂':'♀'}${p.n<3?' *':''}</span></td><td><span class="tag ${tier(p.r)}">${tier(p.r)}</span></td><td><b>${Math.round(p.r)}</b></td><td>${p.w}-${p.l}</td><td>${p.pd>0?'+':''}${p.pd}</td></tr>`).join('')}</table>` : '<p class="mu">Chưa có thành viên.</p>';
+  renderExtra(ps);
   $('#cnt').textContent = members.length;
   $('#mlist').innerHTML = members.map(m => `<div class="mu">${m.g=='M'?'♂':'♀'} ${esc(m.name)}${m.is_admin?' (admin)':''}${adm?` <button class="x e" data-ed="${m.id}">sửa</button><button class="x" data-rm="${m.id}">xóa</button>`:''}</div>`).join('');
   $('#regForm').hidden = !session || (!!me && !adm);
