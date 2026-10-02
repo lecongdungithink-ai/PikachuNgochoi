@@ -45,12 +45,21 @@ th,td{padding:7px 5px;text-align:left;border-bottom:1px solid var(--bd);white-sp
   <div class="err" id="aerr"></div>
 </div>
 
-<nav id="nav"><button data-t="rank" class="on">Trang chủ</button><button data-t="match">Nhập trận</button><button data-t="sug">Gợi ý</button><button data-t="mem">Thành viên</button><button data-t="me" id="navMe" hidden>Của tôi</button></nav>
+<nav id="nav"><button data-t="rank" class="on">Trang chủ</button><button data-t="match">Nhập trận</button><button data-t="sug">Gợi ý</button><button data-t="mem">Thành viên</button><button data-t="tour">Giải đấu</button><button data-t="me" id="navMe" hidden>Của tôi</button><button data-t="adm" id="navAdm" hidden>Quản trị</button></nav>
 
 <section id="t-rank" class="card"><h2>🏆 Top 3</h2><div id="top3"></div>
 <h2 style="margin-top:14px">📈 Tăng hạng tháng này</h2><div id="movers"></div><p class="mu">So với thứ hạng đầu tháng, tự đặt lại khi sang tháng mới.</p>
 <h2 style="margin-top:14px">⚔️ Thách đấu hôm nay</h2><div id="chToday"></div></section>
+<section id="t-tour" class="card" hidden><h2>Giải đấu</h2><div id="tourList"></div></section>
+<section id="t-adm" class="card" hidden><h2>Tạo giải đấu</h2>
+<input id="tn" placeholder="Tên giải" maxlength="60" style="margin-bottom:8px">
+<div class="row"><select id="tt"><option value="MD">Đôi nam – nam</option><option value="XD">Đôi nam – nữ</option><option value="WD">Đôi nữ – nữ</option><option value="OPEN">Hỗn hợp</option></select><select id="tp"><option value="2">2 pot</option><option value="3">3 pot</option><option value="4">4 pot</option></select></div>
+<div class="row"><select id="tr"><option value="equal">Ghép ngang trình</option><option value="strong_weak">Ghép 1 mạnh – 1 yếu</option></select><input id="td" type="datetime-local" title="Hạn đăng ký"></div>
+<button class="btn" id="addT">Tạo giải</button><div class="err" id="terr"></div>
+<h2 style="margin-top:14px">Quản lý giải</h2><div id="admTours"></div>
+<h2 style="margin-top:14px">Phân quyền admin</h2><div id="admRoles"></div></section>
 <section id="t-me" class="card" hidden><div id="meBox"></div>
+<h2 style="margin-top:14px">Giải đấu của tôi</h2><div id="myTours"></div>
 <h2 style="margin-top:14px">Thách đấu</h2>
 <div id="chForm"><div class="mu">Partner của bạn</div><select id="cp"></select>
 <div class="mu" style="margin-top:8px">Đôi thách đấu</div><div class="row"><select id="co1"></select><select id="co2"></select></div>
@@ -89,12 +98,12 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const TN = {MD:'Nam–Nam', XD:'Nam–Nữ', WD:'Nữ–Nữ'};
 const tier = r => r>=1060?'A':r>=980?'B':r>=900?'C':'D';
-let challenges = [], session = null, members = [], matches = [], me = null, prefilled = false;
+let tournaments = [], entries = [], challenges = [], session = null, members = [], matches = [], me = null, prefilled = false;
 const isAdmin = () => !!(me && me.is_admin);
 
 async function load() {
-  const [p, m, c] = await Promise.all([db.from('profiles').select('*'), db.from('matches').select('*').order('created_at'), db.from('challenges').select('*').order('scheduled_at')]);
-  challenges = c.data || [];
+  const [p, m, c, tr, en] = await Promise.all([db.from('profiles').select('*'), db.from('matches').select('*').order('created_at'), db.from('challenges').select('*').order('scheduled_at'), db.from('tournaments').select('*').order('created_at',{ascending:false}), db.from('tournament_entries').select('*')]);
+  challenges = c.data || []; tournaments = tr.data || []; entries = en.data || [];
   members = (p.data || []).map(r => ({...r, g: r.gender}));
   matches = (m.data || []).map(r => ({id:r.id, type:r.type, a:[r.a1,r.a2], b:[r.b1,r.b2], sa:r.sa, sb:r.sb, ts:Date.parse(r.created_at)}));
   me = session ? members.find(x => x.user_id === session.user.id) || null : null;
@@ -192,14 +201,132 @@ function renderMe(ps) {
     .map(c => { const t = new Date(c.scheduled_at); return `<div class="mu" style="margin-bottom:6px">⏰ ${t.getDate()}/${t.getMonth()+1} ${hm(t)} · ${chLine(ps,c)} <button class="x" data-cd="${c.id}">xóa</button></div>`; }).join('') || '<div class="mu">Bạn chưa tạo kèo nào.</div>';
 }
 
+const TL = {MD:'Đôi nam – nam', XD:'Đôi nam – nữ', WD:'Đôi nữ – nữ', OPEN:'Hỗn hợp'};
+const RULE = {equal:'Ghép ngang trình', strong_weak:'Ghép 1 mạnh – 1 yếu'};
+const ST = {open:'Đang đăng ký', closed:'Đã chốt pot', drawn:'Đã bốc thăm'};
+const gOf = id => (members.find(x => x.id == id) || {}).g;
+const eligible = (t, g) => t.event_type == 'OPEN' || t.event_type == 'XD' || (t.event_type == 'MD' && g == 'M') || (t.event_type == 'WD' && g == 'F');
+const fmtDT = iso => { const d = new Date(iso); return pad(d.getDate()) + '/' + pad(d.getMonth()+1) + ' ' + hm(d); };
+const nmg = (ps, id) => (gOf(id) == 'M' ? '♂' : '♀') + nm(ps, id);
+const shuf = a => { a = [...a]; for (let i = a.length-1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const run = async q => { const {error} = await q; if (error) alert(error.message); else load(); };
+
+function renderMyTours(ps) {
+  const box = $('#myTours'); if (!me) { box.innerHTML = ''; return; }
+  const mine = entries.filter(e => e.profile_id == me.id).map(e => ({e, t:tournaments.find(x => x.id == e.tournament_id)})).filter(x => x.t);
+  box.innerHTML = mine.map(({e, t}) => {
+    let info;
+    if (t.status == 'open') info = 'Đã đăng ký, chờ admin chốt pot.';
+    else if (t.status == 'closed') info = `Pot <b>${e.pot}</b> (điểm chốt ${Math.round(e.rating)}). Chờ bốc thăm.`;
+    else if (!e.team) info = `Pot <b>${e.pot}</b>. Chưa có cặp (số người lẻ).`;
+    else { const pt = entries.find(x => x.tournament_id == t.id && x.team == e.team && x.id != e.id); info = `Pot <b>${e.pot}</b> · Cặp ${e.team}: bạn + <b>${pt ? nmg(ps, pt.profile_id) + ` (pot ${pt.pot})` : '?'}</b>`; }
+    return `<div class="card" style="margin-bottom:8px;padding:10px"><b>${esc(t.name)}</b> <span class="tag">${ST[t.status]}</span><div class="mu">${TL[t.event_type]} · ${RULE[t.rule]}</div><div>${info}</div></div>`;
+  }).join('') || '<div class="mu">Bạn chưa đăng ký giải nào (xem tab Giải đấu).</div>';
+}
+
+function renderTour(ps) {
+  renderMyTours(ps);
+  $('#tourList').innerHTML = tournaments.map(t => {
+    const en = entries.filter(e => e.tournament_id == t.id), mineE = me && en.find(e => e.profile_id == me.id);
+    let h = `<div class="card"><b>${esc(t.name)}</b> <span class="tag">${ST[t.status]}</span><div class="mu">${TL[t.event_type]} · ${t.pots} pot · ${RULE[t.rule]}${t.reg_deadline ? ' · hạn ' + fmtDT(t.reg_deadline) : ''}</div>`;
+    if (t.status == 'open') {
+      h += `<div class="mu" style="margin:6px 0">Đã đăng ký (${en.length}): ${en.map(e => nm(ps, e.profile_id)).join(', ') || 'chưa có ai'}</div>`;
+      if (!session) h += '<div class="mu">Đăng nhập để đăng ký.</div>';
+      else if (!me) h += '<div class="mu">Hãy đăng ký thành viên trước (tab Thành viên).</div>';
+      else if (!eligible(t, me.g)) h += '<div class="mu">Nội dung này không dành cho giới tính của bạn.</div>';
+      else h += mineE ? `<button class="btn alt" data-tleave="${mineE.id}">Hủy đăng ký</button>` : `<button class="btn" data-tjoin="${t.id}">Đăng ký tham gia</button>`;
+    } else if (t.status == 'closed') {
+      for (let i = 1; i <= t.pots; i++) h += `<div class="mu"><b>Pot ${i}:</b> ${en.filter(e => e.pot == i).sort((a,b) => b.rating-a.rating).map(e => `${nmg(ps,e.profile_id)} (${Math.round(e.rating)})`).join(', ') || '—'}</div>`;
+      h += '<div class="mu">Đã chốt pot, chờ admin bốc thăm.</div>';
+    } else {
+      const tm = {}; en.filter(e => e.team).forEach(e => (tm[e.team] = tm[e.team] || []).push(e));
+      h += Object.keys(tm).sort((a,b) => a-b).map(k => `<div style="margin-top:4px">Cặp ${k}: ${tm[k].map(e => { const n = nmg(ps, e.profile_id); return (me && e.profile_id == me.id ? `<b>${n}</b>` : n) + ` <span class="mu">(pot ${e.pot})</span>`; }).join(' + ')}</div>`).join('');
+      const un = en.filter(e => !e.team); if (un.length) h += `<div class="mu" style="margin-top:4px">Chưa có cặp: ${un.map(e => nm(ps, e.profile_id)).join(', ')}</div>`;
+    }
+    return h + '</div>';
+  }).join('') || '<div class="mu">Chưa có giải đấu nào.</div>';
+}
+
+function renderAdm(ps) {
+  if (!isAdmin()) return;
+  $('#admTours').innerHTML = tournaments.map(t => {
+    const en = entries.filter(e => e.tournament_id == t.id);
+    let h = `<div class="card"><b>${esc(t.name)}</b> <span class="tag">${ST[t.status]}</span> <button class="x" data-tdel="${t.id}">xóa giải</button><div class="mu">${TL[t.event_type]} · ${en.length} người</div>`;
+    if (t.status == 'open') h += `<button class="btn" data-tclose="${t.id}">Đóng đăng ký và chia pot</button>`;
+    if (t.status == 'closed') {
+      h += '<div class="mu" style="margin:6px 0">Chỉnh tay pot nếu cần trước khi bốc:</div>' + en.sort((a,b) => b.rating-a.rating).map(e => `<div class="row" style="align-items:center"><div>${nmg(ps,e.profile_id)} <span class="mu">${Math.round(e.rating)}</span></div><select data-tpot="${e.id}">${Array.from({length:t.pots}, (_,i) => `<option value="${i+1}"${e.pot == i+1 ? ' selected' : ''}>Pot ${i+1}</option>`).join('')}</select></div>`).join('') + `<button class="btn" data-tdraw="${t.id}">🎲 Bốc thăm ghép cặp</button>`;
+    }
+    return h + '</div>';
+  }).join('') || '<div class="mu">Chưa có giải nào.</div>';
+  $('#admRoles').innerHTML = members.filter(m => m.user_id).map(m => `<div class="mu" style="margin-bottom:6px">${esc(m.name)}${m.is_admin ? ' <b>(admin)</b>' : ''} <button class="x e" data-role="${m.id}">${m.is_admin ? 'Gỡ admin' : 'Cấp admin'}</button></div>`).join('');
+}
+
+async function closeTour(t) {
+  const ps = calc(), en = entries.filter(e => e.tournament_id == t.id).map(e => ({...e}));
+  if (en.length < 2) return alert('Cần ít nhất 2 người đăng ký.');
+  if (!confirm('Chốt điểm hiện tại và chia pot? Sau đó đăng ký sẽ đóng.')) return;
+  const rate = id => { const q = ps.find(x => x.id == id); return t.event_type == 'OPEN' ? q.r : q.t[t.event_type].r; };
+  const groups = t.event_type == 'XD' ? [en.filter(e => gOf(e.profile_id) == 'M'), en.filter(e => gOf(e.profile_id) == 'F')] : [en], ups = [];
+  groups.forEach(g => { g.forEach(e => e.rating = rate(e.profile_id)); g.sort((a,b) => b.rating-a.rating); g.forEach((e,i) => ups.push(db.from('tournament_entries').update({rating:e.rating, pot:Math.floor(i*t.pots/g.length)+1}).eq('id', e.id))); });
+  const bad = (await Promise.all(ups)).find(r => r.error); if (bad) return alert(bad.error.message);
+  run(db.from('tournaments').update({status:'closed'}).eq('id', t.id));
+}
+
+async function drawTour(t) {
+  if (!confirm('Bốc thăm sẽ khóa kết quả, không bốc lại được. Tiếp tục?')) return;
+  const en = entries.filter(e => e.tournament_id == t.id).map(e => ({...e})), k = t.pots, sw = t.rule == 'strong_weak', pairs = [];
+  const potsOf = l => Array.from({length:k}, (_,i) => l.filter(e => e.pot == i+1));
+  let un = [];
+  if (t.event_type == 'XD') {
+    const M = potsOf(en.filter(e => gOf(e.profile_id) == 'M')), F = potsOf(en.filter(e => gOf(e.profile_id) == 'F')), lm = [], lf = [];
+    for (let i = 0; i < k; i++) { const a = shuf(M[i]), b = shuf(F[sw ? k-1-i : i]), n = Math.min(a.length, b.length); for (let j = 0; j < n; j++) pairs.push([a[j], b[j]]); lm.push(...a.slice(n)); lf.push(...b.slice(n)); }
+    lm.sort((x,y) => y.rating-x.rating); lf.sort((x,y) => sw ? x.rating-y.rating : y.rating-x.rating);
+    const n = Math.min(lm.length, lf.length); for (let j = 0; j < n; j++) pairs.push([lm[j], lf[j]]);
+    un = [...lm.slice(n), ...lf.slice(n)];
+  } else {
+    const P = potsOf(en), left = [], within = a => { a = shuf(a); for (let j = 0; j+1 < a.length; j += 2) pairs.push([a[j], a[j+1]]); if (a.length % 2) left.push(a[a.length-1]); };
+    if (!sw) P.forEach(within);
+    else { for (let i = 0; i < Math.floor(k/2); i++) { const a = shuf(P[i]), b = shuf(P[k-1-i]), n = Math.min(a.length, b.length); for (let j = 0; j < n; j++) pairs.push([a[j], b[j]]); left.push(...a.slice(n), ...b.slice(n)); } if (k % 2) within(P[(k-1)/2]); }
+    left.sort((x,y) => y.rating-x.rating);
+    while (left.length >= 2) pairs.push(sw ? [left.shift(), left.pop()] : [left.shift(), left.shift()]);
+    un = left;
+  }
+  const ups = []; shuf(pairs).forEach((pr,i) => pr.forEach(e => ups.push(db.from('tournament_entries').update({team:i+1}).eq('id', e.id))));
+  const bad = (await Promise.all(ups)).find(r => r.error); if (bad) return alert(bad.error.message);
+  run(db.from('tournaments').update({status:'drawn'}).eq('id', t.id));
+}
+
+document.addEventListener('click', e => {
+  const d = e.target.dataset || {};
+  if (d.tjoin && me) run(db.from('tournament_entries').insert({tournament_id:d.tjoin, profile_id:me.id}));
+  else if (d.tleave) run(db.from('tournament_entries').delete().eq('id', d.tleave));
+  else if (d.tclose && isAdmin()) closeTour(tournaments.find(x => x.id == d.tclose));
+  else if (d.tdraw && isAdmin()) drawTour(tournaments.find(x => x.id == d.tdraw));
+  else if (d.tdel && isAdmin() && confirm('Xóa giải này cùng toàn bộ đăng ký?')) run(db.from('tournaments').delete().eq('id', d.tdel));
+  else if (d.role && isAdmin()) {
+    const m = members.find(x => x.id == d.role);
+    if (m.is_admin && members.filter(x => x.is_admin).length <= 1) return alert('Phải còn ít nhất một admin.');
+    run(db.from('profiles').update({is_admin:!m.is_admin}).eq('id', m.id));
+  }
+});
+document.addEventListener('change', e => { const id = e.target.dataset && e.target.dataset.tpot; if (id && isAdmin()) run(db.from('tournament_entries').update({pot:+e.target.value}).eq('id', id)); });
+$('#addT').onclick = async () => {
+  const name = $('#tn').value.trim(), er = $('#terr'), dl = $('#td').value;
+  if (!name) return er.textContent = 'Nhập tên giải.';
+  const {error} = await db.from('tournaments').insert({name, event_type:$('#tt').value, pots:+$('#tp').value, rule:$('#tr').value, reg_deadline: dl ? new Date(dl).toISOString() : null});
+  er.textContent = error ? (/tournament/.test(error.message) ? 'Chưa tạo bảng giải đấu: hãy chạy file schema-tournament.sql.' : error.message) : '';
+  if (!error) { $('#tn').value = ''; load(); }
+};
+
 function refresh() {
   const ps = calc().sort((a,b) => b.r-a.r), adm = isAdmin();
-  $('#navMe').hidden = !session;
+  $('#navMe').hidden = !session; $('#navAdm').hidden = !adm;
+  if (!adm && !$('#t-adm').hidden) document.querySelector('[data-t=rank]').click();
   if (!session && !$('#t-me').hidden) document.querySelector('[data-t=rank]').click();
   $('#authForm').hidden = !!session; $('#authInfo').hidden = !session;
   if (session) $('#who').textContent = session.user.email + (adm ? ' · Admin' : me ? '' : ' · chưa đăng ký thành viên');
   renderHome(ps);
-  renderMe(ps);
+  renderMe(ps); renderTour(ps); renderAdm(ps);
   $('#cnt').textContent = members.length;
   $('#mlist').innerHTML = members.map(m => `<div class="mu">${m.g=='M'?'♂':'♀'} ${esc(m.name)}${m.is_admin?' (admin)':''}${adm?` <button class="x e" data-ed="${m.id}">sửa</button><button class="x" data-rm="${m.id}">xóa</button>`:''}</div>`).join('');
   $('#regForm').hidden = !session || (!!me && !adm);
@@ -226,7 +353,7 @@ db.auth.onAuthStateChange((_e, s) => { session = s; load(); });
 // ---- Giao diện ----
 $('#nav').onclick = e => { const t = e.target.dataset.t; if (!t) return;
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.t==t));
-  ['rank','match','sug','mem','me'].forEach(k => $('#t-'+k).hidden = k!=t); };
+  ['rank','match','sug','mem','me','tour','adm'].forEach(k => $('#t-'+k).hidden = k!=t); };
 $('#mtype').onchange = refresh; $('#stype').onchange = refresh;
 document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
 
