@@ -34,6 +34,7 @@ th,td{padding:7px 5px;text-align:left;border-bottom:1px solid var(--bd);white-sp
 <body>
 <main>
 <h1>🏓 CLB Pickleball Pikachu Ngọc Hồi</h1>
+<div class="mu" id="today" style="margin-bottom:6px"></div>
 
 <div class="card" id="auth">
   <div id="authForm">
@@ -44,11 +45,19 @@ th,td{padding:7px 5px;text-align:left;border-bottom:1px solid var(--bd);white-sp
   <div class="err" id="aerr"></div>
 </div>
 
-<nav id="nav"><button data-t="rank" class="on">Xếp hạng</button><button data-t="match">Nhập trận</button><button data-t="sug">Gợi ý</button><button data-t="mem">Thành viên</button></nav>
+<nav id="nav"><button data-t="rank" class="on">Trang chủ</button><button data-t="match">Nhập trận</button><button data-t="sug">Gợi ý</button><button data-t="mem">Thành viên</button><button data-t="me" id="navMe" hidden>Của tôi</button></nav>
 
-<section id="t-rank" class="card"><h2>Bảng xếp hạng</h2><div class="tbl" id="rank"></div>
-<div id="extra" hidden></div>
-<p class="mu">Điểm khởi đầu 1000, tính kiểu Elo theo trình đôi. Hạng: A ≥ 1060, B 980–1059, C 900–979, D &lt; 900. Dấu * là dưới 3 trận, chưa ổn định.</p></section>
+<section id="t-rank" class="card"><h2>🏆 Top 3</h2><div id="top3"></div>
+<h2 style="margin-top:14px">📈 Tăng hạng tháng này</h2><div id="movers"></div><p class="mu">So với thứ hạng đầu tháng, tự đặt lại khi sang tháng mới.</p>
+<h2 style="margin-top:14px">⚔️ Thách đấu hôm nay</h2><div id="chToday"></div></section>
+<section id="t-me" class="card" hidden><div id="meBox"></div>
+<h2 style="margin-top:14px">Thách đấu</h2>
+<div id="chForm"><div class="mu">Partner của bạn</div><select id="cp"></select>
+<div class="mu" style="margin-top:8px">Đôi thách đấu</div><div class="row"><select id="co1"></select><select id="co2"></select></div>
+<div class="mu">Thời gian</div><input id="ct" type="datetime-local">
+<input id="cn" placeholder="Ghi chú (sân, địa điểm…)" maxlength="80" style="margin:8px 0">
+<button class="btn" id="addCh">Gửi thách đấu</button><div class="err" id="cerr"></div></div>
+<h2 style="margin-top:14px">Kèo của bạn sắp tới</h2><div id="chList"></div></section>
 
 <section id="t-match" class="card" hidden><h2>Nhập kết quả trận</h2>
 <p class="mu" id="needLogin">Hãy đăng nhập và đăng ký thành viên để nhập trận.</p>
@@ -80,20 +89,22 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const TN = {MD:'Nam–Nam', XD:'Nam–Nữ', WD:'Nữ–Nữ'};
 const tier = r => r>=1060?'A':r>=980?'B':r>=900?'C':'D';
-let session = null, members = [], matches = [], me = null, prefilled = false;
+let challenges = [], session = null, members = [], matches = [], me = null, prefilled = false;
 const isAdmin = () => !!(me && me.is_admin);
 
 async function load() {
-  const [p, m] = await Promise.all([db.from('profiles').select('*'), db.from('matches').select('*').order('created_at')]);
+  const [p, m, c] = await Promise.all([db.from('profiles').select('*'), db.from('matches').select('*').order('created_at'), db.from('challenges').select('*').order('scheduled_at')]);
+  challenges = c.data || [];
   members = (p.data || []).map(r => ({...r, g: r.gender}));
   matches = (m.data || []).map(r => ({id:r.id, type:r.type, a:[r.a1,r.a2], b:[r.b1,r.b2], sa:r.sa, sb:r.sb, ts:Date.parse(r.created_at)}));
   me = session ? members.find(x => x.user_id === session.user.id) || null : null;
   refresh();
 }
 
-function calc() {
+function calc(until = Infinity) {
   const P = {}; members.forEach(m => P[m.id] = {...m, r:1000, w:0, l:0, pd:0, n:0, last:0, t:{MD:{r:1000,w:0,l:0,n:0}, XD:{r:1000,w:0,l:0,n:0}, WD:{r:1000,w:0,l:0,n:0}}});
   matches.forEach(m => {
+    if (m.ts >= until) return;
     const A = m.a.map(i => P[i]), B = m.b.map(i => P[i]);
     if (A.includes(undefined) || B.includes(undefined)) return;
     const ra = (A[0].r+A[1].r)/2, rb = (B[0].r+B[1].r)/2, ea = 1/(1+Math.pow(10,(rb-ra)/400));
@@ -133,12 +144,39 @@ function suggest(type, ps) {
 
 const nm = (ps,id) => { const p = ps.find(x => x.id==id); return p ? esc(p.name) : '?'; };
 
-function renderExtra(ps) {
-  const box = $('#extra'); box.hidden = !session; if (!session) return;
-  const top = g => ps.filter(p => p.g == g).sort((a,b) => b.r-a.r).slice(0,3), medal = ['🥇','🥈','🥉'];
+const monthStart = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).getTime(); };
+const dayStart = () => new Date().setHours(0,0,0,0);
+const pad = n => String(n).padStart(2,'0');
+const hm = t => pad(t.getHours()) + ':' + pad(t.getMinutes());
+const chLine = (ps, c) => `${nm(ps,c.p1)} / ${nm(ps,c.p2)} <b>🆚</b> ${nm(ps,c.o1)} / ${nm(ps,c.o2)}`;
+
+function renderHome(ps) {
+  $('#today').textContent = new Date().toLocaleDateString('vi-VN', {weekday:'long', day:'2-digit', month:'2-digit', year:'numeric'});
+  const medal = ['🥇','🥈','🥉'], top = g => ps.filter(p => p.g == g).sort((a,b) => b.r-a.r).slice(0,3);
   const fmt = arr => arr.length ? arr.map((p,i) => { const n = esc(p.name); return `<div>${medal[i]} ${me && p.id==me.id ? `<b>${n} (bạn)</b>` : n} <span class="mu">– ${Math.round(p.r)} · hạng ${tier(p.r)}</span></div>`; }).join('') : '<div class="mu">Chưa có dữ liệu</div>';
-  let h = `<h2 style="margin-top:14px">Top 3</h2><div class="row"><div><div class="mu">Nam</div>${fmt(top('M'))}</div><div><div class="mu">Nữ</div>${fmt(top('F'))}</div></div>`;
-  if (!me) { box.innerHTML = h + '<p class="mu">Đăng ký thành viên để xem xếp hạng cặp đôi của bạn.</p>'; return; }
+  $('#top3').innerHTML = `<div class="row"><div><div class="mu">Nam</div>${fmt(top('M'))}</div><div><div class="mu">Nữ</div>${fmt(top('F'))}</div></div>`;
+  const ms = monthStart(), ps0 = calc(ms).filter(p => Date.parse(p.created_at) < ms).sort((a,b) => b.r-a.r), ids = new Set(ps0.map(p => p.id));
+  const mv = ps.filter(p => ids.has(p.id)).map((p,i) => { const j = ps0.findIndex(q => q.id==p.id), q = ps0[j]; return {p, up:j-i, dr:p.r-q.r, played:p.n>q.n}; })
+    .filter(x => x.played && x.up > 0).sort((a,b) => b.up-a.up || b.dr-a.dr).slice(0,3);
+  $('#movers').innerHTML = mv.map((x,i) => { const n = esc(x.p.name); return `<div>${medal[i]} ${me && x.p.id==me.id ? `<b>${n} (bạn)</b>` : n} <span class="mu">– ↑${x.up} hạng · ${x.dr>=0?'+':''}${Math.round(x.dr)} điểm</span></div>`; }).join('') || '<div class="mu">Tháng này chưa có ai tăng hạng.</div>';
+  const td = challenges.filter(c => new Date(c.scheduled_at).toDateString() == new Date().toDateString()).sort((a,b) => Date.parse(a.scheduled_at)-Date.parse(b.scheduled_at));
+  $('#chToday').innerHTML = td.map(c => `<div class="card" style="margin-bottom:8px;padding:10px"><b>⏰ ${hm(new Date(c.scheduled_at))}</b> · ${chLine(ps,c)}${c.note ? `<div class="mu">${esc(c.note)}</div>` : ''}${isAdmin() ? ` <button class="x" data-cd="${c.id}">xóa</button>` : ''}</div>`).join('') || '<div class="mu">Hôm nay chưa có kèo thách đấu nào.</div>';
+}
+
+function renderMe(ps) {
+  const box = $('#meBox'); if (!session) return;
+  if (!me) { box.innerHTML = '<p class="mu">Hãy đăng ký thành viên (tab Thành viên) để xem thống kê cá nhân và thách đấu.</p>'; $('#chForm').hidden = true; $('#chList').innerHTML = ''; return; }
+  $('#chForm').hidden = false;
+  const i = ps.findIndex(p => p.id == me.id), p = ps[i], ms = monthStart();
+  const mine = matches.filter(m => (m.a.includes(me.id) || m.b.includes(me.id)) && m.ts >= ms).sort((a,b) => b.ts-a.ts);
+  let w = 0;
+  const rows = mine.map(m => {
+    const inA = m.a.includes(me.id), my = inA ? m.a : m.b, op = inA ? m.b : m.a, x = inA ? m.sa : m.sb, y = inA ? m.sb : m.sa, win = x > y, d = new Date(m.ts);
+    if (win) w++;
+    return `<div class="mu" style="margin-bottom:6px">${win?'✅':'❌'} ${d.getDate()}/${d.getMonth()+1} · ${TN[m.type]}: <b>Bạn/${nm(ps, my.find(k => k != me.id))}</b> ${x}–${y} ${nm(ps,op[0])}/${nm(ps,op[1])}</div>`;
+  }).join('') || '<div class="mu">Tháng này bạn chưa đánh trận nào.</div>';
+  let h = `<h2>Thống kê của bạn</h2><div>Hạng hiện tại: <b>#${i+1}</b> / ${ps.length} · <b>${Math.round(p.r)}</b> điểm · hạng ${tier(p.r)}</div><div class="mu">Tổng: ${p.w} thắng – ${p.l} thua · hiệu số ${p.pd>0?'+':''}${p.pd}. Hạng A ≥ 1060, B 980–1059, C 900–979, D &lt; 900.</div>`;
+  h += `<h2 style="margin-top:14px">Trận tháng ${new Date().getMonth()+1}: ${mine.length} trận (${w} thắng)</h2>${rows}`;
   const L = {MD:'Đôi nam – nam', XD:'Đôi nam – nữ', WD:'Đôi nữ – nữ'};
   (me.g == 'M' ? ['MD','XD'] : ['WD','XD']).forEach(t => {
     const rk = ps.filter(p => p.t[t].n > 0 && (t == 'XD' || p.g == (t == 'MD' ? 'M' : 'F'))).sort((a,b) => b.t[t].r-a.t[t].r);
@@ -147,14 +185,21 @@ function renderExtra(ps) {
     h += rk.length ? `<div class="tbl"><table><tr><th>#</th><th>Tên</th><th>Điểm</th><th>T-B</th></tr>${show.map(i => { const p = rk[i], q = p.t[t], you = p.id == me.id, n = esc(p.name); return `<tr><td>${i+1}</td><td>${you ? `<b>${n}</b>` : n}</td><td>${you ? `<b>${Math.round(q.r)}</b>` : Math.round(q.r)}</td><td>${q.w}-${q.l}</td></tr>`; }).join('')}</table></div>` : '<div class="mu">Chưa có trận nào.</div>';
   });
   box.innerHTML = h;
+  const opt = '<option value="">— chọn —</option>' + ps.filter(x => x.id != me.id).sort((a,b) => a.name.localeCompare(b.name)).map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
+  ['cp','co1','co2'].forEach(k => { const el = $('#'+k), v = el.value; el.innerHTML = opt; if ([...el.options].some(o => o.value==v)) el.value = v; });
+  if (!$('#ct').value) { const d = new Date(); d.setHours(18,0,0,0); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); $('#ct').value = d.toISOString().slice(0,16); }
+  $('#chList').innerHTML = challenges.filter(c => c.created_by == session.user.id && Date.parse(c.scheduled_at) >= dayStart()).sort((a,b) => Date.parse(a.scheduled_at)-Date.parse(b.scheduled_at))
+    .map(c => { const t = new Date(c.scheduled_at); return `<div class="mu" style="margin-bottom:6px">⏰ ${t.getDate()}/${t.getMonth()+1} ${hm(t)} · ${chLine(ps,c)} <button class="x" data-cd="${c.id}">xóa</button></div>`; }).join('') || '<div class="mu">Bạn chưa tạo kèo nào.</div>';
 }
 
 function refresh() {
   const ps = calc().sort((a,b) => b.r-a.r), adm = isAdmin();
+  $('#navMe').hidden = !session;
+  if (!session && !$('#t-me').hidden) document.querySelector('[data-t=rank]').click();
   $('#authForm').hidden = !!session; $('#authInfo').hidden = !session;
   if (session) $('#who').textContent = session.user.email + (adm ? ' · Admin' : me ? '' : ' · chưa đăng ký thành viên');
-  $('#rank').innerHTML = ps.length ? `<table><tr><th>#</th><th>Tên</th><th>Hạng</th><th>Điểm</th><th>T-B</th><th>+/−</th></tr>${ps.map((p,i) => `<tr><td>${i+1}</td><td>${esc(p.name)} <span class="mu">${p.g=='M'?'♂':'♀'}${p.n<3?' *':''}</span></td><td><span class="tag ${tier(p.r)}">${tier(p.r)}</span></td><td><b>${Math.round(p.r)}</b></td><td>${p.w}-${p.l}</td><td>${p.pd>0?'+':''}${p.pd}</td></tr>`).join('')}</table>` : '<p class="mu">Chưa có thành viên.</p>';
-  renderExtra(ps);
+  renderHome(ps);
+  renderMe(ps);
   $('#cnt').textContent = members.length;
   $('#mlist').innerHTML = members.map(m => `<div class="mu">${m.g=='M'?'♂':'♀'} ${esc(m.name)}${m.is_admin?' (admin)':''}${adm?` <button class="x e" data-ed="${m.id}">sửa</button><button class="x" data-rm="${m.id}">xóa</button>`:''}</div>`).join('');
   $('#regForm').hidden = !session || (!!me && !adm);
@@ -181,7 +226,7 @@ db.auth.onAuthStateChange((_e, s) => { session = s; load(); });
 // ---- Giao diện ----
 $('#nav').onclick = e => { const t = e.target.dataset.t; if (!t) return;
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.t==t));
-  ['rank','match','sug','mem'].forEach(k => $('#t-'+k).hidden = k!=t); };
+  ['rank','match','sug','mem','me'].forEach(k => $('#t-'+k).hidden = k!=t); };
 $('#mtype').onchange = refresh; $('#stype').onchange = refresh;
 document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
 
@@ -204,6 +249,22 @@ $('#mlist').onclick = async e => {
   }
   if (error) alert(error.message); else load();
 };
+
+// ---- Thách đấu ----
+$('#addCh').onclick = async () => {
+  const pt = $('#cp').value, o1 = $('#co1').value, o2 = $('#co2').value, t = $('#ct').value, er = $('#cerr');
+  if (!me) return;
+  if (!pt || !o1 || !o2 || !t) return er.textContent = 'Hãy chọn partner, đôi thách đấu và thời gian.';
+  if (new Set([me.id,pt,o1,o2]).size < 4) return er.textContent = '4 người phải khác nhau.';
+  const when = new Date(t); if (when.getTime() < dayStart()) return er.textContent = 'Thời gian không hợp lệ.';
+  const {error} = await db.from('challenges').insert({p1:me.id, p2:pt, o1, o2, scheduled_at:when.toISOString(), note:$('#cn').value.trim() || null});
+  er.textContent = error ? (/challenges/.test(error.message) ? 'Chưa tạo bảng thách đấu: hãy chạy file schema-update.sql.' : error.message) : '';
+  if (!error) { $('#cn').value = ''; load(); }
+};
+document.addEventListener('click', async e => {
+  const id = e.target.dataset && e.target.dataset.cd; if (!id || !confirm('Xóa kèo này?')) return;
+  const {error} = await db.from('challenges').delete().eq('id', id); if (error) alert(error.message); else load();
+});
 
 // ---- Trận đấu ----
 $('#addMatch').onclick = async () => {
