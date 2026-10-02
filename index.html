@@ -1,424 +1,133 @@
 <!DOCTYPE html>
-<html lang="vi">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>CLB Pickleball Pikachu Ngọc Hồi</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏓</text></svg>">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pikachu Ngọc Hồi</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <style>
-:root{--bg:#f5f5f2;--card:#fff;--tx:#1d1d1b;--mu:#6b6b64;--ac:#f5c400;--on:#1d1d1b;--bd:#e3e3dc;--bad:#c92a2a}
-@media (prefers-color-scheme:dark){:root{--bg:#141412;--card:#1e1e1b;--tx:#f1f1ea;--mu:#a1a198;--bd:#33332e;--bad:#ff8787}}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
-main{max-width:720px;margin:0 auto;padding:12px}
-h1{font-size:20px;margin:6px 0 2px}h2{font-size:16px;margin:0 0 8px}
-nav{display:flex;gap:6px;margin:10px 0;overflow-x:auto}
-nav button{flex:1;white-space:nowrap;padding:9px 10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;font:inherit;cursor:pointer}
-nav button.on{background:var(--ac);color:var(--on);border-color:var(--ac);font-weight:700}
-.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;margin-bottom:12px}
-input,select{width:100%;padding:9px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
-.row{display:flex;gap:8px;margin-bottom:8px}.row>*{flex:1}
-.btn{padding:10px 14px;border:0;border-radius:8px;background:var(--ac);color:var(--on);font:inherit;font-weight:700;cursor:pointer;width:100%}
-.btn.alt{background:var(--bg);border:1px solid var(--bd);color:var(--tx);font-weight:500}
-.x{background:none;border:0;color:var(--bad);cursor:pointer;font-size:13px;width:auto;padding:2px 6px}.x.e{color:var(--tx);text-decoration:underline}
-.tbl{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px}
-th,td{padding:7px 5px;text-align:left;border-bottom:1px solid var(--bd);white-space:nowrap}th{color:var(--mu);font-weight:600;font-size:12px}
-.tag{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;font-weight:700;background:var(--ac);color:var(--on)}
-.tag.B{opacity:.8}.tag.C{opacity:.6}.tag.D{opacity:.45}
-.mu{color:var(--mu);font-size:13px}.err{color:var(--bad);font-size:13px;min-height:18px;margin-top:6px}
-.vs{display:flex;align-items:center;gap:8px;margin:6px 0}.vs>div{flex:1}.vs b{color:var(--mu)}
-[hidden]{display:none!important}
-</style>
-</head>
-<body>
-<main>
-<h1>🏓 CLB Pickleball Pikachu Ngọc Hồi</h1>
-<div class="mu" id="today" style="margin-bottom:6px"></div>
-
-<div class="card" id="auth">
-  <div id="authForm">
-    <div class="row"><input id="email" type="email" placeholder="Email" autocomplete="email"><input id="pw" type="password" placeholder="Mật khẩu (từ 6 ký tự)" autocomplete="current-password"></div>
-    <div class="row"><button class="btn" id="login">Đăng nhập</button><button class="btn alt" id="signup">Tạo tài khoản</button></div>
-  </div>
-  <div id="authInfo" hidden><span id="who"></span> <button class="x e" id="logout">Đăng xuất</button></div>
-  <div class="err" id="aerr"></div>
-</div>
-
-<nav id="nav"><button data-t="rank" class="on">Trang chủ</button><button data-t="match">Nhập trận</button><button data-t="sug">Gợi ý</button><button data-t="mem">Thành viên</button><button data-t="tour">Giải đấu</button><button data-t="me" id="navMe" hidden>Của tôi</button><button data-t="adm" id="navAdm" hidden>Quản trị</button></nav>
-
-<section id="t-rank" class="card"><h2>🏆 Top 3</h2><div id="top3"></div>
-<h2 style="margin-top:14px">📈 Tăng hạng tháng này</h2><div id="movers"></div><p class="mu">So với thứ hạng đầu tháng, tự đặt lại khi sang tháng mới.</p>
-<h2 style="margin-top:14px">⚔️ Thách đấu hôm nay</h2><div id="chToday"></div></section>
-<section id="t-tour" class="card" hidden><h2>Giải đấu</h2><div id="tourList"></div></section>
-<section id="t-adm" class="card" hidden><h2>Tạo giải đấu</h2>
-<input id="tn" placeholder="Tên giải" maxlength="60" style="margin-bottom:8px">
-<div class="row"><select id="tt"><option value="MD">Đôi nam – nam</option><option value="XD">Đôi nam – nữ</option><option value="WD">Đôi nữ – nữ</option><option value="OPEN">Hỗn hợp</option></select><select id="tp"><option value="2">2 pot</option><option value="3">3 pot</option><option value="4">4 pot</option></select></div>
-<div class="row"><select id="tr"><option value="equal">Ghép ngang trình</option><option value="strong_weak">Ghép 1 mạnh – 1 yếu</option></select><input id="td" type="datetime-local" title="Hạn đăng ký"></div>
-<button class="btn" id="addT">Tạo giải</button><div class="err" id="terr"></div>
-<h2 style="margin-top:14px">Quản lý giải</h2><div id="admTours"></div>
-<h2 style="margin-top:14px">Phân quyền admin</h2><div id="admRoles"></div></section>
-<section id="t-me" class="card" hidden><div id="meBox"></div>
-<h2 style="margin-top:14px">Giải đấu của tôi</h2><div id="myTours"></div>
-<h2 style="margin-top:14px">Thách đấu</h2>
-<div id="chForm"><div class="mu">Partner của bạn</div><select id="cp"></select>
-<div class="mu" style="margin-top:8px">Đôi thách đấu</div><div class="row"><select id="co1"></select><select id="co2"></select></div>
-<div class="mu">Thời gian</div><input id="ct" type="datetime-local">
-<input id="cn" placeholder="Ghi chú (sân, địa điểm…)" maxlength="80" style="margin:8px 0">
-<button class="btn" id="addCh">Gửi thách đấu</button><div class="err" id="cerr"></div></div>
-<h2 style="margin-top:14px">Kèo của bạn sắp tới</h2><div id="chList"></div></section>
-
-<section id="t-match" class="card" hidden><h2>Nhập kết quả trận</h2>
-<p class="mu" id="needLogin">Hãy đăng nhập và đăng ký thành viên để nhập trận.</p>
-<div id="matchForm">
-<div class="row"><select id="mtype"><option value="MD">Đôi nam – nam</option><option value="XD">Đôi nam – nữ</option><option value="WD">Đôi nữ – nữ</option></select></div>
-<div class="mu">Đội 1</div><div class="row"><select id="a1"></select><select id="a2"></select><input id="sa" type="number" min="0" placeholder="Điểm" inputmode="numeric"></div>
-<div class="mu">Đội 2</div><div class="row"><select id="b1"></select><select id="b2"></select><input id="sb" type="number" min="0" placeholder="Điểm" inputmode="numeric"></div>
-<button class="btn" id="addMatch">Lưu kết quả</button><div class="err" id="merr"></div></div>
-<h2 style="margin-top:14px">Trận gần đây</h2><div id="recent"></div></section>
-
-<section id="t-sug" class="card" hidden><h2>Gợi ý trận tiếp theo</h2>
-<div class="row"><select id="stype"><option value="MD">Đôi nam – nam</option><option value="XD">Đôi nam – nữ</option><option value="WD">Đôi nữ – nữ</option></select></div>
-<p class="mu">Ưu tiên người lâu chưa đánh, cùng trình (chênh ≤ 150 điểm), chia đội cân bằng nhất.</p><div id="sug"></div></section>
-
-<section id="t-mem" class="card" hidden><h2>Đăng ký thành viên</h2>
-<p class="mu" id="memHint"></p>
-<div id="regForm"><div class="row"><input id="mname" placeholder="Họ tên / biệt danh" maxlength="40"><select id="mg"><option value="M">Nam</option><option value="F">Nữ</option></select></div>
-<button class="btn" id="addMem">Đăng ký</button></div><div class="err" id="eerr"></div>
-<h2 style="margin-top:14px">Danh sách (<span id="cnt">0</span>)</h2><div id="mlist"></div></section>
-</main>
-
+body{font-family:system-ui,sans-serif;margin:0;background:#fffbe6;color:#222}
+header{background:#f9c80e;padding:10px 14px;font-weight:700}
+nav{display:flex;gap:4px;overflow-x:auto;padding:6px;background:#fff3b0}
+nav button{white-space:nowrap}main{padding:12px;max-width:760px;margin:auto}
+.card{background:#fff;border-radius:10px;padding:10px;margin:8px 0;box-shadow:0 1px 3px #0002}
+input,select,button{padding:7px;margin:3px 0;font-size:15px;max-width:100%}button{cursor:pointer}
+h3{margin:12px 0 4px}small{color:#666}
+</style></head><body>
+<header>🏓 Pikachu Ngọc Hồi <span id="who" style="float:right;font-weight:400"></span></header>
+<nav id="nav"></nav><main id="app"></main>
 <script>
-// ====== ĐIỀN 2 DÒNG NÀY (Supabase > Project Settings > API) ======
-const SUPABASE_URL = 'https://feyksklghawdljiqopov.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_Uo0y8bmy3zFD2d1pRxSLpQ_JAHrCjUY';
-// ================================================================
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const $ = s => document.querySelector(s);
-const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const TN = {MD:'Nam–Nam', XD:'Nam–Nữ', WD:'Nữ–Nữ'};
-const tier = r => r>=1060?'A':r>=980?'B':r>=900?'C':'D';
-let tournaments = [], entries = [], challenges = [], session = null, members = [], matches = [], me = null, prefilled = false;
-const isAdmin = () => !!(me && me.is_admin);
+const sb=supabase.createClient('https://feyksklghawdljiqopov.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZleWtza2xnaGF3ZGxqaXFvcG92Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA4MzU5NTMsImV4cCI6MjEwNjQxMTk1M30.sskFyfBaosN6lUEEmFYbQIbszBAsonWj3KrTyXdQIn0');
+const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let me,D={},tab='news';
+const CAT={MM:'Nam-Nam',MF:'Nam-Nữ',FF:'Nữ-Nữ'},TT={MM:'Nam-Nam',MF:'Nam-Nữ',FF:'Nữ-Nữ',mixed:'Hỗn hợp',team:'Đồng đội'};
+const ST={open:'Đang đăng ký',pot_locked:'Đã chốt pot',drawn:'Đã bốc thăm',finished:'Kết thúc',pending:'Chờ',accepted:'Đã chấp nhận',declined:'Từ chối',played:'Đã đánh',expired:'Hết hạn',confirmed:'Đã xác nhận',cancelled:'Đã hủy'};
+const P=id=>D.pm[id]?.full_name||'?', B=(id,t)=>id===me.id?`<b>${esc(t||P(id))}</b>`:esc(t||P(id));
+const pair=(a,b)=>B(a)+' & '+B(b);
+const mon=d=>d.slice(0,7)===new Date().toISOString().slice(0,7);
 
-async function load() {
-  const [p, m, c, tr, en] = await Promise.all([db.from('profiles').select('*'), db.from('matches').select('*').order('created_at'), db.from('challenges').select('*').order('scheduled_at'), db.from('tournaments').select('*').order('created_at',{ascending:false}), db.from('tournament_entries').select('*')]);
-  challenges = c.data || []; tournaments = tr.data || []; entries = en.data || [];
-  members = (p.data || []).map(r => ({...r, g: r.gender}));
-  matches = (m.data || []).map(r => ({id:r.id, type:r.type, a:[r.a1,r.a2], b:[r.b1,r.b2], sa:r.sa, sb:r.sb, ts:Date.parse(r.created_at)}));
-  me = session ? members.find(x => x.user_id === session.user.id) || null : null;
-  refresh();
+async function load(){
+  await sb.rpc('expire_old');
+  const q=async(t,o)=>(await sb.from(t).select('*').order(o||'id',{ascending:false})).data||[];
+  const [pr,ra,ma,ch,tn,tp,en,de]=await Promise.all([q('profiles','created_at'),q('ratings','user_id'),q('matches'),q('challenges'),q('tournaments'),q('tournament_players','user_id'),q('entries','team_no'),q('match_deltas','at')]);
+  D={pr,ra,ma,ch,tn,tp,en,de,pm:Object.fromEntries(pr.map(p=>[p.id,p]))};
+  me=D.pm[me.id]; $('who').textContent=me.full_name+(me.is_admin?' (admin)':'');
 }
+function overall(u){const r=D.ra.filter(x=>x.user_id===u&&x.games>0);return r.length?r.reduce((s,x)=>s+ +x.elo,0)/r.length:1000}
+function top3(g){return D.pr.filter(p=>p.gender===g).map(p=>[p,overall(p.id)]).sort((a,b)=>b[1]-a[1]).slice(0,3)}
+const topHtml=(g,l)=>`<div class=card><b>Top 3 ${l}</b>${top3(g).map(([p,e],i)=>`<div>${i+1}. ${B(p.id)} <small>${Math.round(e)}</small></div>`).join('')||'<small>Chưa có</small>'}</div>`;
+function movers(){const s={};D.de.filter(d=>mon(d.at)).forEach(d=>s[d.user_id]=(s[d.user_id]||0)+ +d.delta);
+  return Object.entries(s).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1])).slice(0,3)}
+function rankIn(u,c){const g=D.pm[u].gender,l=D.ra.filter(r=>r.category===c&&r.games>0&&D.pm[r.user_id].gender===g).sort((a,b)=>b.elo-a.elo);
+  const i=l.findIndex(r=>r.user_id===u);return i<0?'—':(i+1)+'/'+l.length}
+const mline=m=>`${m.played_at} · ${CAT[m.category]} · ${pair(m.a1,m.a2)} <b>${m.score_a}-${m.score_b}</b> ${pair(m.b1,m.b2)} <small>${ST[m.status]}</small>`;
 
-function calc(until = Infinity) {
-  const P = {}; members.forEach(m => P[m.id] = {...m, r:1000, w:0, l:0, pd:0, n:0, last:0, t:{MD:{r:1000,w:0,l:0,n:0}, XD:{r:1000,w:0,l:0,n:0}, WD:{r:1000,w:0,l:0,n:0}}});
-  matches.forEach(m => {
-    if (m.ts >= until) return;
-    const A = m.a.map(i => P[i]), B = m.b.map(i => P[i]);
-    if (A.includes(undefined) || B.includes(undefined)) return;
-    const ra = (A[0].r+A[1].r)/2, rb = (B[0].r+B[1].r)/2, ea = 1/(1+Math.pow(10,(rb-ra)/400));
-    const win = m.sa > m.sb ? 1 : 0, mar = Math.min(1.5, 1+Math.abs(m.sa-m.sb)/15), d = 32*mar*(win-ea);
-    const T = m.type, ta = (A[0].t[T].r+A[1].t[T].r)/2, tb = (B[0].t[T].r+B[1].t[T].r)/2, d2 = 32*mar*(win-1/(1+Math.pow(10,(tb-ta)/400)));
-    A.forEach(p => {const q = p.t[T]; q.r += d2; q.n++; win ? q.w++ : q.l++});
-    B.forEach(p => {const q = p.t[T]; q.r -= d2; q.n++; win ? q.l++ : q.w++});
-    A.forEach(p => {p.r += d; p.n++; p.pd += m.sa-m.sb; win ? p.w++ : p.l++; p.last = m.ts});
-    B.forEach(p => {p.r -= d; p.n++; p.pd += m.sb-m.sa; win ? p.l++ : p.w++; p.last = m.ts});
-  });
-  return Object.values(P);
-}
-
-function suggest(type, ps) {
-  const used = new Set(), out = [];
-  const pool = ps.filter(p => type=='MD' ? p.g=='M' : type=='WD' ? p.g=='F' : true).sort((a,b) => a.last-b.last);
-  for (const s of pool) {
-    if (used.has(s.id)) continue;
-    const near = (arr, n) => arr.filter(p => p.id!=s.id && !used.has(p.id)).sort((a,b) => Math.abs(a.r-s.r)-Math.abs(b.r-s.r)).slice(0,n);
-    let four, splits;
-    if (type=='XD') {
-      const same = near(pool.filter(p => p.g==s.g),1), oth = near(pool.filter(p => p.g!=s.g),2);
-      if (same.length<1 || oth.length<2) continue;
-      four = [s,...same,...oth]; const [a,b,c,d] = four; splits = [[[a,c],[b,d]],[[a,d],[b,c]]];
-    } else {
-      const o = near(pool,3); if (o.length<3) continue;
-      four = [s,...o]; const [a,b,c,d] = four; splits = [[[a,b],[c,d]],[[a,c],[b,d]],[[a,d],[b,c]]];
-    }
-    const rs = four.map(p => p.r); if (Math.max(...rs)-Math.min(...rs) > 150) continue;
-    const avg = t => (t[0].r+t[1].r)/2;
-    splits.sort((x,y) => Math.abs(avg(x[0])-avg(x[1]))-Math.abs(avg(y[0])-avg(y[1])));
-    four.forEach(p => used.add(p.id)); out.push(splits[0]);
-    if (out.length >= 6) break;
-  }
-  return out;
-}
-
-const nm = (ps,id) => { const p = ps.find(x => x.id==id); return p ? esc(p.name) : '?'; };
-
-const monthStart = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).getTime(); };
-const dayStart = () => new Date().setHours(0,0,0,0);
-const pad = n => String(n).padStart(2,'0');
-const hm = t => pad(t.getHours()) + ':' + pad(t.getMinutes());
-const chLine = (ps, c) => `${nm(ps,c.p1)} / ${nm(ps,c.p2)} <b>🆚</b> ${nm(ps,c.o1)} / ${nm(ps,c.o2)}`;
-
-function renderHome(ps) {
-  $('#today').textContent = new Date().toLocaleDateString('vi-VN', {weekday:'long', day:'2-digit', month:'2-digit', year:'numeric'});
-  const medal = ['🥇','🥈','🥉'], top = g => ps.filter(p => p.g == g).sort((a,b) => b.r-a.r).slice(0,3);
-  const fmt = arr => arr.length ? arr.map((p,i) => { const n = esc(p.name); return `<div>${medal[i]} ${me && p.id==me.id ? `<b>${n} (bạn)</b>` : n} <span class="mu">– ${Math.round(p.r)} · hạng ${tier(p.r)}</span></div>`; }).join('') : '<div class="mu">Chưa có dữ liệu</div>';
-  $('#top3').innerHTML = `<div class="row"><div><div class="mu">Nam</div>${fmt(top('M'))}</div><div><div class="mu">Nữ</div>${fmt(top('F'))}</div></div>`;
-  const ms = monthStart(), ps0 = calc(ms).filter(p => Date.parse(p.created_at) < ms).sort((a,b) => b.r-a.r), ids = new Set(ps0.map(p => p.id));
-  const mv = ps.filter(p => ids.has(p.id)).map((p,i) => { const j = ps0.findIndex(q => q.id==p.id), q = ps0[j]; return {p, up:j-i, dr:p.r-q.r, played:p.n>q.n}; })
-    .filter(x => x.played && x.up > 0).sort((a,b) => b.up-a.up || b.dr-a.dr).slice(0,3);
-  $('#movers').innerHTML = mv.map((x,i) => { const n = esc(x.p.name); return `<div>${medal[i]} ${me && x.p.id==me.id ? `<b>${n} (bạn)</b>` : n} <span class="mu">– ↑${x.up} hạng · ${x.dr>=0?'+':''}${Math.round(x.dr)} điểm</span></div>`; }).join('') || '<div class="mu">Tháng này chưa có ai tăng hạng.</div>';
-  const td = challenges.filter(c => new Date(c.scheduled_at).toDateString() == new Date().toDateString()).sort((a,b) => Date.parse(a.scheduled_at)-Date.parse(b.scheduled_at));
-  $('#chToday').innerHTML = td.map(c => `<div class="card" style="margin-bottom:8px;padding:10px"><b>⏰ ${hm(new Date(c.scheduled_at))}</b> · ${chLine(ps,c)}${c.note ? `<div class="mu">${esc(c.note)}</div>` : ''}${isAdmin() ? ` <button class="x" data-cd="${c.id}">xóa</button>` : ''}</div>`).join('') || '<div class="mu">Hôm nay chưa có kèo thách đấu nào.</div>';
-}
-
-function renderMe(ps) {
-  const box = $('#meBox'); if (!session) return;
-  if (!me) { box.innerHTML = '<p class="mu">Hãy đăng ký thành viên (tab Thành viên) để xem thống kê cá nhân và thách đấu.</p>'; $('#chForm').hidden = true; $('#chList').innerHTML = ''; return; }
-  $('#chForm').hidden = false;
-  const i = ps.findIndex(p => p.id == me.id), p = ps[i], ms = monthStart();
-  const mine = matches.filter(m => (m.a.includes(me.id) || m.b.includes(me.id)) && m.ts >= ms).sort((a,b) => b.ts-a.ts);
-  let w = 0;
-  const rows = mine.map(m => {
-    const inA = m.a.includes(me.id), my = inA ? m.a : m.b, op = inA ? m.b : m.a, x = inA ? m.sa : m.sb, y = inA ? m.sb : m.sa, win = x > y, d = new Date(m.ts);
-    if (win) w++;
-    return `<div class="mu" style="margin-bottom:6px">${win?'✅':'❌'} ${d.getDate()}/${d.getMonth()+1} · ${TN[m.type]}: <b>Bạn/${nm(ps, my.find(k => k != me.id))}</b> ${x}–${y} ${nm(ps,op[0])}/${nm(ps,op[1])}</div>`;
-  }).join('') || '<div class="mu">Tháng này bạn chưa đánh trận nào.</div>';
-  let h = `<h2>Thống kê của bạn</h2><div>Hạng hiện tại: <b>#${i+1}</b> / ${ps.length} · <b>${Math.round(p.r)}</b> điểm · hạng ${tier(p.r)}</div><div class="mu">Tổng: ${p.w} thắng – ${p.l} thua · hiệu số ${p.pd>0?'+':''}${p.pd}. Hạng A ≥ 1060, B 980–1059, C 900–979, D &lt; 900.</div>`;
-  h += `<h2 style="margin-top:14px">Trận tháng ${new Date().getMonth()+1}: ${mine.length} trận (${w} thắng)</h2>${rows}`;
-  const L = {MD:'Đôi nam – nam', XD:'Đôi nam – nữ', WD:'Đôi nữ – nữ'};
-  (me.g == 'M' ? ['MD','XD'] : ['WD','XD']).forEach(t => {
-    const rk = ps.filter(p => p.t[t].n > 0 && (t == 'XD' || p.g == (t == 'MD' ? 'M' : 'F'))).sort((a,b) => b.t[t].r-a.t[t].r);
-    const mi = rk.findIndex(p => p.id == me.id), show = [...new Set([...rk.slice(0,5).map((_,i) => i), ...(mi >= 0 ? [mi] : [])])];
-    h += `<h2 style="margin-top:14px">${L[t]}</h2>` + (mi >= 0 ? `<div class="mu">Hạng của bạn: <b>#${mi+1}</b> / ${rk.length} người</div>` : '<div class="mu">Bạn chưa thi đấu nội dung này.</div>');
-    h += rk.length ? `<div class="tbl"><table><tr><th>#</th><th>Tên</th><th>Điểm</th><th>T-B</th></tr>${show.map(i => { const p = rk[i], q = p.t[t], you = p.id == me.id, n = esc(p.name); return `<tr><td>${i+1}</td><td>${you ? `<b>${n}</b>` : n}</td><td>${you ? `<b>${Math.round(q.r)}</b>` : Math.round(q.r)}</td><td>${q.w}-${q.l}</td></tr>`; }).join('')}</table></div>` : '<div class="mu">Chưa có trận nào.</div>';
-  });
-  box.innerHTML = h;
-  const opt = '<option value="">— chọn —</option>' + ps.filter(x => x.id != me.id).sort((a,b) => a.name.localeCompare(b.name)).map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
-  ['cp','co1','co2'].forEach(k => { const el = $('#'+k), v = el.value; el.innerHTML = opt; if ([...el.options].some(o => o.value==v)) el.value = v; });
-  if (!$('#ct').value) { const d = new Date(); d.setHours(18,0,0,0); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); $('#ct').value = d.toISOString().slice(0,16); }
-  $('#chList').innerHTML = challenges.filter(c => c.created_by == session.user.id && Date.parse(c.scheduled_at) >= dayStart()).sort((a,b) => Date.parse(a.scheduled_at)-Date.parse(b.scheduled_at))
-    .map(c => { const t = new Date(c.scheduled_at); return `<div class="mu" style="margin-bottom:6px">⏰ ${t.getDate()}/${t.getMonth()+1} ${hm(t)} · ${chLine(ps,c)} <button class="x" data-cd="${c.id}">xóa</button></div>`; }).join('') || '<div class="mu">Bạn chưa tạo kèo nào.</div>';
-}
-
-const TL = {MD:'Đôi nam – nam', XD:'Đôi nam – nữ', WD:'Đôi nữ – nữ', OPEN:'Hỗn hợp'};
-const RULE = {equal:'Ghép ngang trình', strong_weak:'Ghép 1 mạnh – 1 yếu'};
-const ST = {open:'Đang đăng ký', closed:'Đã chốt pot', drawn:'Đã bốc thăm'};
-const gOf = id => (members.find(x => x.id == id) || {}).g;
-const eligible = (t, g) => t.event_type == 'OPEN' || t.event_type == 'XD' || (t.event_type == 'MD' && g == 'M') || (t.event_type == 'WD' && g == 'F');
-const fmtDT = iso => { const d = new Date(iso); return pad(d.getDate()) + '/' + pad(d.getMonth()+1) + ' ' + hm(d); };
-const nmg = (ps, id) => (gOf(id) == 'M' ? '♂' : '♀') + nm(ps, id);
-const shuf = a => { a = [...a]; for (let i = a.length-1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-const run = async q => { const {error} = await q; if (error) alert(error.message); else load(); };
-
-function renderMyTours(ps) {
-  const box = $('#myTours'); if (!me) { box.innerHTML = ''; return; }
-  const mine = entries.filter(e => e.profile_id == me.id).map(e => ({e, t:tournaments.find(x => x.id == e.tournament_id)})).filter(x => x.t);
-  box.innerHTML = mine.map(({e, t}) => {
-    let info;
-    if (t.status == 'open') info = 'Đã đăng ký, chờ admin chốt pot.';
-    else if (t.status == 'closed') info = `Pot <b>${e.pot}</b> (điểm chốt ${Math.round(e.rating)}). Chờ bốc thăm.`;
-    else if (!e.team) info = `Pot <b>${e.pot}</b>. Chưa có cặp (số người lẻ).`;
-    else { const pt = entries.find(x => x.tournament_id == t.id && x.team == e.team && x.id != e.id); info = `Pot <b>${e.pot}</b> · Cặp ${e.team}: bạn + <b>${pt ? nmg(ps, pt.profile_id) + ` (pot ${pt.pot})` : '?'}</b>`; }
-    return `<div class="card" style="margin-bottom:8px;padding:10px"><b>${esc(t.name)}</b> <span class="tag">${ST[t.status]}</span><div class="mu">${TL[t.event_type]} · ${RULE[t.rule]}</div><div>${info}</div></div>`;
-  }).join('') || '<div class="mu">Bạn chưa đăng ký giải nào (xem tab Giải đấu).</div>';
-}
-
-function renderTour(ps) {
-  renderMyTours(ps);
-  $('#tourList').innerHTML = tournaments.map(t => {
-    const en = entries.filter(e => e.tournament_id == t.id), mineE = me && en.find(e => e.profile_id == me.id);
-    let h = `<div class="card"><b>${esc(t.name)}</b> <span class="tag">${ST[t.status]}</span><div class="mu">${TL[t.event_type]} · ${t.pots} pot · ${RULE[t.rule]}${t.reg_deadline ? ' · hạn ' + fmtDT(t.reg_deadline) : ''}</div>`;
-    if (t.status == 'open') {
-      h += `<div class="mu" style="margin:6px 0">Đã đăng ký (${en.length}): ${en.map(e => nm(ps, e.profile_id)).join(', ') || 'chưa có ai'}</div>`;
-      if (!session) h += '<div class="mu">Đăng nhập để đăng ký.</div>';
-      else if (!me) h += '<div class="mu">Hãy đăng ký thành viên trước (tab Thành viên).</div>';
-      else if (!eligible(t, me.g)) h += '<div class="mu">Nội dung này không dành cho giới tính của bạn.</div>';
-      else h += mineE ? `<button class="btn alt" data-tleave="${mineE.id}">Hủy đăng ký</button>` : `<button class="btn" data-tjoin="${t.id}">Đăng ký tham gia</button>`;
-    } else if (t.status == 'closed') {
-      for (let i = 1; i <= t.pots; i++) h += `<div class="mu"><b>Pot ${i}:</b> ${en.filter(e => e.pot == i).sort((a,b) => b.rating-a.rating).map(e => `${nmg(ps,e.profile_id)} (${Math.round(e.rating)})`).join(', ') || '—'}</div>`;
-      h += '<div class="mu">Đã chốt pot, chờ admin bốc thăm.</div>';
-    } else {
-      const tm = {}; en.filter(e => e.team).forEach(e => (tm[e.team] = tm[e.team] || []).push(e));
-      h += Object.keys(tm).sort((a,b) => a-b).map(k => `<div style="margin-top:4px">Cặp ${k}: ${tm[k].map(e => { const n = nmg(ps, e.profile_id); return (me && e.profile_id == me.id ? `<b>${n}</b>` : n) + ` <span class="mu">(pot ${e.pot})</span>`; }).join(' + ')}</div>`).join('');
-      const un = en.filter(e => !e.team); if (un.length) h += `<div class="mu" style="margin-top:4px">Chưa có cặp: ${un.map(e => nm(ps, e.profile_id)).join(', ')}</div>`;
-    }
-    return h + '</div>';
-  }).join('') || '<div class="mu">Chưa có giải đấu nào.</div>';
-}
-
-function renderAdm(ps) {
-  if (!isAdmin()) return;
-  $('#admTours').innerHTML = tournaments.map(t => {
-    const en = entries.filter(e => e.tournament_id == t.id);
-    let h = `<div class="card"><b>${esc(t.name)}</b> <span class="tag">${ST[t.status]}</span> <button class="x" data-tdel="${t.id}">xóa giải</button><div class="mu">${TL[t.event_type]} · ${en.length} người</div>`;
-    if (t.status == 'open') h += `<button class="btn" data-tclose="${t.id}">Đóng đăng ký và chia pot</button>`;
-    if (t.status == 'closed') {
-      h += '<div class="mu" style="margin:6px 0">Chỉnh tay pot nếu cần trước khi bốc:</div>' + en.sort((a,b) => b.rating-a.rating).map(e => `<div class="row" style="align-items:center"><div>${nmg(ps,e.profile_id)} <span class="mu">${Math.round(e.rating)}</span></div><select data-tpot="${e.id}">${Array.from({length:t.pots}, (_,i) => `<option value="${i+1}"${e.pot == i+1 ? ' selected' : ''}>Pot ${i+1}</option>`).join('')}</select></div>`).join('') + `<button class="btn" data-tdraw="${t.id}">🎲 Bốc thăm ghép cặp</button>`;
-    }
-    return h + '</div>';
-  }).join('') || '<div class="mu">Chưa có giải nào.</div>';
-  $('#admRoles').innerHTML = members.filter(m => m.user_id).map(m => `<div class="mu" style="margin-bottom:6px">${esc(m.name)}${m.is_admin ? ' <b>(admin)</b>' : ''} <button class="x e" data-role="${m.id}">${m.is_admin ? 'Gỡ admin' : 'Cấp admin'}</button></div>`).join('');
-}
-
-async function closeTour(t) {
-  const ps = calc(), en = entries.filter(e => e.tournament_id == t.id).map(e => ({...e}));
-  if (en.length < 2) return alert('Cần ít nhất 2 người đăng ký.');
-  if (!confirm('Chốt điểm hiện tại và chia pot? Sau đó đăng ký sẽ đóng.')) return;
-  const rate = id => { const q = ps.find(x => x.id == id); return t.event_type == 'OPEN' ? q.r : q.t[t.event_type].r; };
-  const groups = t.event_type == 'XD' ? [en.filter(e => gOf(e.profile_id) == 'M'), en.filter(e => gOf(e.profile_id) == 'F')] : [en], ups = [];
-  groups.forEach(g => { g.forEach(e => e.rating = rate(e.profile_id)); g.sort((a,b) => b.rating-a.rating); g.forEach((e,i) => ups.push(db.from('tournament_entries').update({rating:e.rating, pot:Math.floor(i*t.pots/g.length)+1}).eq('id', e.id))); });
-  const bad = (await Promise.all(ups)).find(r => r.error); if (bad) return alert(bad.error.message);
-  run(db.from('tournaments').update({status:'closed'}).eq('id', t.id));
-}
-
-async function drawTour(t) {
-  if (!confirm('Bốc thăm sẽ khóa kết quả, không bốc lại được. Tiếp tục?')) return;
-  const en = entries.filter(e => e.tournament_id == t.id).map(e => ({...e})), k = t.pots, sw = t.rule == 'strong_weak', pairs = [];
-  const potsOf = l => Array.from({length:k}, (_,i) => l.filter(e => e.pot == i+1));
-  let un = [];
-  if (t.event_type == 'XD') {
-    const M = potsOf(en.filter(e => gOf(e.profile_id) == 'M')), F = potsOf(en.filter(e => gOf(e.profile_id) == 'F')), lm = [], lf = [];
-    for (let i = 0; i < k; i++) { const a = shuf(M[i]), b = shuf(F[sw ? k-1-i : i]), n = Math.min(a.length, b.length); for (let j = 0; j < n; j++) pairs.push([a[j], b[j]]); lm.push(...a.slice(n)); lf.push(...b.slice(n)); }
-    lm.sort((x,y) => y.rating-x.rating); lf.sort((x,y) => sw ? x.rating-y.rating : y.rating-x.rating);
-    const n = Math.min(lm.length, lf.length); for (let j = 0; j < n; j++) pairs.push([lm[j], lf[j]]);
-    un = [...lm.slice(n), ...lf.slice(n)];
-  } else {
-    const P = potsOf(en), left = [], within = a => { a = shuf(a); for (let j = 0; j+1 < a.length; j += 2) pairs.push([a[j], a[j+1]]); if (a.length % 2) left.push(a[a.length-1]); };
-    if (!sw) P.forEach(within);
-    else { for (let i = 0; i < Math.floor(k/2); i++) { const a = shuf(P[i]), b = shuf(P[k-1-i]), n = Math.min(a.length, b.length); for (let j = 0; j < n; j++) pairs.push([a[j], b[j]]); left.push(...a.slice(n), ...b.slice(n)); } if (k % 2) within(P[(k-1)/2]); }
-    left.sort((x,y) => y.rating-x.rating);
-    while (left.length >= 2) pairs.push(sw ? [left.shift(), left.pop()] : [left.shift(), left.shift()]);
-    un = left;
-  }
-  const ups = []; shuf(pairs).forEach((pr,i) => pr.forEach(e => ups.push(db.from('tournament_entries').update({team:i+1}).eq('id', e.id))));
-  const bad = (await Promise.all(ups)).find(r => r.error); if (bad) return alert(bad.error.message);
-  run(db.from('tournaments').update({status:'drawn'}).eq('id', t.id));
-}
-
-document.addEventListener('click', e => {
-  const d = e.target.dataset || {};
-  if (d.tjoin && me) run(db.from('tournament_entries').insert({tournament_id:d.tjoin, profile_id:me.id}));
-  else if (d.tleave) run(db.from('tournament_entries').delete().eq('id', d.tleave));
-  else if (d.tclose && isAdmin()) closeTour(tournaments.find(x => x.id == d.tclose));
-  else if (d.tdraw && isAdmin()) drawTour(tournaments.find(x => x.id == d.tdraw));
-  else if (d.tdel && isAdmin() && confirm('Xóa giải này cùng toàn bộ đăng ký?')) run(db.from('tournaments').delete().eq('id', d.tdel));
-  else if (d.role && isAdmin()) {
-    const m = members.find(x => x.id == d.role);
-    if (m.is_admin && members.filter(x => x.is_admin).length <= 1) return alert('Phải còn ít nhất một admin.');
-    run(db.from('profiles').update({is_admin:!m.is_admin}).eq('id', m.id));
-  }
-});
-document.addEventListener('change', e => { const id = e.target.dataset && e.target.dataset.tpot; if (id && isAdmin()) run(db.from('tournament_entries').update({pot:+e.target.value}).eq('id', id)); });
-$('#addT').onclick = async () => {
-  const name = $('#tn').value.trim(), er = $('#terr'), dl = $('#td').value;
-  if (!name) return er.textContent = 'Nhập tên giải.';
-  const {error} = await db.from('tournaments').insert({name, event_type:$('#tt').value, pots:+$('#tp').value, rule:$('#tr').value, reg_deadline: dl ? new Date(dl).toISOString() : null});
-  er.textContent = error ? (/tournament/.test(error.message) ? 'Chưa tạo bảng giải đấu: hãy chạy file schema-tournament.sql.' : error.message) : '';
-  if (!error) { $('#tn').value = ''; load(); }
+const views={
+news(){const t=new Date().toISOString().slice(0,10);
+  return `<h2>🔥 Hot news</h2><div class=card>📅 ${new Date().toLocaleDateString('vi-VN',{weekday:'long',day:'numeric',month:'numeric',year:'numeric'})}</div>
+  ${topHtml('M','Nam')}${topHtml('F','Nữ')}
+  <div class=card><b>Top 3 thay đổi thứ hạng tháng này</b>${movers().map(([u,d])=>`<div>${B(u)} <small>${d>0?'+':''}${d} điểm</small></div>`).join('')||'<small>Chưa có</small>'}</div>
+  <h3>Thách đấu hôm nay</h3>${D.ch.filter(c=>c.scheduled_at.slice(0,10)===t&&['pending','accepted'].includes(c.status)).map(c=>`<div class=card>${pair(c.a1,c.a2)} vs ${pair(c.b1,c.b2)} <small>${new Date(c.scheduled_at).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})} · ${ST[c.status]}</small></div>`).join('')||'<small>Không có</small>'}`},
+me(){const mm=D.ma.filter(m=>m.status!=='cancelled'&&mon(m.played_at)&&[m.a1,m.a2,m.b1,m.b2].includes(me.id));
+  const cats=me.gender==='M'?['MM','MF']:['FF','MF'];
+  const myT=D.tn.filter(t=>D.tp.some(p=>p.tournament_id===t.id&&p.user_id===me.id));
+  const myCh=D.ch.filter(c=>[c.a1,c.a2,c.b1,c.b2].includes(me.id));
+  return `<h2>Trang cá nhân</h2>${topHtml('M','Nam')}${topHtml('F','Nữ')}
+  <div class=card><b>Thứ hạng của tôi</b>${cats.map(c=>`<div>${CAT[c]}: hạng ${rankIn(me.id,c)} · ${Math.round(D.ra.find(r=>r.user_id===me.id&&r.category===c)?.elo||1000)} điểm</div>`).join('')}</div>
+  <div class=card><b>Trận trong tháng (${mm.length})</b>${mm.map(m=>`<div>${mline(m)}</div>`).join('')}</div>
+  <h3>Thách đấu</h3>
+  <div class=card><select id=cp>${opts(u=>u.id!==me.id)}</select> cùng tôi thách đấu<br><select id=co1>${opts(u=>u.id!==me.id)}</select><select id=co2>${opts(u=>u.id!==me.id)}</select><br><input type=datetime-local id=cd><br><button onclick="mkCh()">Gửi thách đấu</button></div>
+  ${myCh.map(c=>{const inc=[c.b1,c.b2].includes(me.id)&&c.status==='pending';return `<div class=card>${pair(c.a1,c.a2)} vs ${pair(c.b1,c.b2)}<br><small>${new Date(c.scheduled_at).toLocaleString('vi-VN')} · ${ST[c.status]}</small>
+  ${inc?`<br><button onclick="chSt(${c.id},'accepted')">Chấp nhận</button><button onclick="chSt(${c.id},'declined')">Từ chối</button>`:''}
+  ${c.status==='accepted'?`<br><button onclick="fromCh(${c.id})">Nhập kết quả</button>`:''}</div>`}).join('')}
+  <h3>Giải đã đăng ký</h3>${myT.map(t=>`<div class=card><b>${esc(t.name)}</b> · ${TT[t.type]} <small>${ST[t.status]}</small>${t.status==='drawn'?teamsHtml(t):t.status==='pot_locked'?potHtml(t):''}</div>`).join('')||'<small>Chưa đăng ký giải nào</small>'}`},
+result(){const pend=D.ma.filter(m=>m.status==='pending'&&[m.a1,m.a2,m.b1,m.b2].includes(me.id));
+  const ok=m=>me.is_admin||(([m.a1,m.a2].includes(me.id))!==([m.a1,m.a2].includes(m.created_by)));
+  return `<h2>Nhập kết quả</h2><div class=card>
+  <select id=rc><option value=MM>Nam-Nam</option><option value=MF>Nam-Nữ</option><option value=FF>Nữ-Nữ</option></select><br>
+  Đội A: <select id=ra1>${opts()}</select><select id=ra2>${opts()}</select> <input id=rsa type=number min=0 placeholder="Điểm" style="width:70px"><br>
+  Đội B: <select id=rb1>${opts()}</select><select id=rb2>${opts()}</select> <input id=rsb type=number min=0 placeholder="Điểm" style="width:70px"><br>
+  ${me.is_admin?`<select id=rt><option value="">Trận thường</option>${D.tn.map(t=>`<option value=${t.id}>${esc(t.name)}</option>`).join('')}</select><br>`:''}
+  <button onclick="mkMatch()">Gửi kết quả</button><br><small>Một người của đội đối thủ cần xác nhận trong 3 ngày.</small></div>
+  <h3>Chờ xác nhận</h3>${pend.map(m=>`<div class=card>${mline(m)}${ok(m)?`<br><button onclick="cf(${m.id})">Xác nhận</button>`:''}</div>`).join('')||'<small>Không có</small>'}
+  ${me.is_admin?`<h3>Admin: sửa / hủy trận</h3>${D.ma.filter(m=>m.status!=='cancelled').slice(0,30).map(m=>`<div class=card>${mline(m)}<br><button onclick="adm(${m.id})">Sửa tỷ số</button><button onclick="adm(${m.id},1)">Hủy</button></div>`).join('')}`:''}`},
+members(){const g=x=>D.pr.filter(p=>p.gender===x);
+  return `<h2>Thành viên</h2><div class=card>Tổng: <b>${D.pr.length}</b> · Nam: <b>${g('M').length}</b> · Nữ: <b>${g('F').length}</b></div>
+  ${[['M','Nam'],['F','Nữ']].map(([x,l])=>`<div class=card><b>${l}</b>${g(x).map(p=>`<div>${B(p.id)} <small>${Math.round(overall(p.id))}</small></div>`).join('')}</div>`).join('')}`},
+tour(){return `<h2>Giải đấu</h2>${me.is_admin?`<div class=card><b>Tạo giải</b><br><input id=tn placeholder="Tên giải"><br>
+  <select id=tt>${Object.entries(TT).map(([k,v])=>`<option value=${k}>${v}</option>`).join('')}</select>
+  <select id=tpa><option value=equal>Ngang rank</option><option value=strong_weak>1 mạnh 1 yếu</option></select><br>
+  <input type=date id=ts> → <input type=date id=te><br><label><input type=checkbox id=tr checked> Ảnh hưởng xếp hạng</label><br><button onclick="mkTour()">Tạo</button></div>`:''}
+  ${[...D.tn].sort((a,b)=>a.start_date<b.start_date?-1:1).map(t=>{const joined=D.tp.some(p=>p.tournament_id===t.id&&p.user_id===me.id),n=D.tp.filter(p=>p.tournament_id===t.id).length;
+  return `<div class=card><b>${esc(t.name)}</b> · ${TT[t.type]} · ${t.pairing==='equal'?'Ngang rank':'1 mạnh 1 yếu'}<br><small>${t.start_date} → ${t.end_date} · ${ST[t.status]} · ${n} người · ${t.affects_rank?'Tính xếp hạng':'Không tính xếp hạng'}</small>
+  ${t.status==='open'?`<br><button onclick="join(${t.id},${joined})">${joined?'Hủy đăng ký':'Đăng ký'}</button>`:''}
+  ${me.is_admin?`<br>${t.status==='open'?`<button onclick="tst(${t.id},'pot_locked')">Chốt pot</button>`:''}${t.status==='pot_locked'?`<button onclick="draw(${t.id})">Bốc thăm</button>`:''}${t.status==='drawn'?`<button onclick="tst(${t.id},'finished')">Kết thúc giải</button>`:''}`:''}
+  ${t.status==='pot_locked'?potHtml(t):t.status==='drawn'||t.status==='finished'?teamsHtml(t):''}</div>`}).join('')}`}
 };
+function opts(f){return D.pr.filter(f||(()=>1)).map(p=>`<option value=${p.id}>${esc(p.full_name)}</option>`).join('')}
+function potHtml(t){return '<div><small>Pot:</small> '+D.tp.filter(p=>p.tournament_id===t.id).map(p=>B(p.user_id)).join(', ')+'</div>'}
+function teamsHtml(t){const e=D.en.filter(x=>x.tournament_id===t.id),g={};e.forEach(x=>(g[x.team_no]??=[]).push(x.user_id));
+  return Object.entries(g).map(([n,us])=>`<div>${t.type==='team'?'Đội '+n:'Cặp '+n}: ${us.map(u=>B(u)).join(' & ')}</div>`).join('')}
 
-function refresh() {
-  const ps = calc().sort((a,b) => b.r-a.r), adm = isAdmin();
-  $('#navMe').hidden = !session; $('#navAdm').hidden = !adm;
-  if (!adm && !$('#t-adm').hidden) document.querySelector('[data-t=rank]').click();
-  if (!session && !$('#t-me').hidden) document.querySelector('[data-t=rank]').click();
-  $('#authForm').hidden = !!session; $('#authInfo').hidden = !session;
-  if (session) $('#who').textContent = session.user.email + (adm ? ' · Admin' : me ? '' : ' · chưa đăng ký thành viên');
-  renderHome(ps);
-  renderMe(ps); renderTour(ps); renderAdm(ps);
-  $('#cnt').textContent = members.length;
-  $('#mlist').innerHTML = members.map(m => `<div class="mu">${m.g=='M'?'♂':'♀'} ${esc(m.name)}${m.is_admin?' (admin)':''}${adm?` <button class="x e" data-ed="${m.id}">sửa</button><button class="x" data-rm="${m.id}">xóa</button>`:''}</div>`).join('');
-  $('#regForm').hidden = !session || (!!me && !adm);
-  $('#memHint').textContent = !session ? 'Hãy đăng nhập (hoặc tạo tài khoản) rồi quay lại đây để đăng ký.' : me ? (adm ? 'Bạn là admin: có thể đăng ký hộ thành viên khác.' : 'Bạn đã đăng ký: ' + me.name) : '';
-  const canPlay = !!session && !!me;
-  $('#matchForm').hidden = !canPlay; $('#needLogin').hidden = canPlay;
-  const type = $('#mtype').value, need = type=='MD' ? ['M'] : type=='WD' ? ['F'] : ['M','F'];
-  const opt = g => '<option value="">— chọn —</option>' + ps.filter(p => g.includes(p.g)).sort((a,b) => a.name.localeCompare(b.name)).map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
-  const slots = {a1:need[0], a2:need[need.length-1], b1:need[0], b2:need[need.length-1]};
-  for (const k in slots) { const el = $('#'+k), v = el.value; el.innerHTML = opt([slots[k]]); if ([...el.options].some(o => o.value==v)) el.value = v; }
-  if (me && !prefilled && [...$('#a1').options].some(o => o.value==me.id)) { $('#a1').value = me.id; prefilled = true; }
-  $('#recent').innerHTML = [...matches].sort((a,b) => b.ts-a.ts).slice(0,10).map(m => `<div class="mu" style="margin-bottom:6px">${TN[m.type]}: <b>${nm(ps,m.a[0])}/${nm(ps,m.a[1])}</b> ${m.sa}–${m.sb} <b>${nm(ps,m.b[0])}/${nm(ps,m.b[1])}</b>${adm?` <button class="x e" data-em="${m.id}">sửa</button><button class="x" data-del="${m.id}">xóa</button>`:''}</div>`).join('') || '<p class="mu">Chưa có trận nào.</p>';
-  const sg = suggest($('#stype').value, ps), avg = t => (t[0].r+t[1].r)/2;
-  $('#sug').innerHTML = sg.map(([x,y]) => { const pr = Math.round(100/(1+Math.pow(10,(avg(y)-avg(x))/400))); return `<div class="card" style="margin-bottom:8px"><div class="vs"><div><b>${esc(x[0].name)} / ${esc(x[1].name)}</b><div class="mu">TB ${Math.round(avg(x))}</div></div><b>vs</b><div><b>${esc(y[0].name)} / ${esc(y[1].name)}</b><div class="mu">TB ${Math.round(avg(y))}</div></div></div><div class="mu">Tỷ lệ thắng dự kiến ${pr}% – ${100-pr}%</div></div>`; }).join('') || '<p class="mu">Chưa đủ người cùng trình để gợi ý (cần 4 người, chênh lệch điểm ≤ 150).</p>';
-}
+const err=e=>e&&alert(e.message);
+async function run(p){const r=await p;err(r.error);await load();render()}
+window.mkCh=()=>{const v=id=>$(id).value;if(!v('cd'))return alert('Chọn thời gian');if(new Set([me.id,v('cp'),v('co1'),v('co2')]).size<4)return alert('Cần 4 người khác nhau');
+  run(sb.from('challenges').insert({a1:me.id,a2:v('cp'),b1:v('co1'),b2:v('co2'),scheduled_at:new Date(v('cd')).toISOString(),created_by:me.id}))};
+window.chSt=(id,s)=>run(sb.from('challenges').update({status:s}).eq('id',id));
+window.fromCh=async id=>{const c=D.ch.find(x=>x.id===id);await sb.from('challenges').update({status:'played'}).eq('id',id);await load();tab='result';render();
+  ['a1','a2','b1','b2'].forEach(k=>$('r'+k).value=c[k])};
+window.mkMatch=()=>{const v=id=>$(id).value,u=['ra1','ra2','rb1','rb2'].map(v);if(new Set(u).size<4)return alert('Cần 4 người khác nhau');
+  const sa=+v('rsa'),sb2=+v('rsb');if(v('rsa')===''||v('rsb')===''||sa===sb2)return alert('Tỷ số không hợp lệ');
+  const t=me.is_admin&&v('rt')?D.tn.find(x=>x.id==v('rt')):null;
+  run(sb.from('matches').insert({category:v('rc'),a1:u[0],a2:u[1],b1:u[2],b2:u[3],score_a:sa,score_b:sb2,created_by:me.id,tournament_id:t?.id||null,counts_rank:t?t.affects_rank:true,status:me.is_admin?'pending':'pending'}))
+  .then?.(()=>{})};
+window.cf=id=>run(sb.rpc('confirm_match',{mid:id}));
+window.adm=(id,cancel)=>{let a=0,b=0;if(!cancel){const s=prompt('Tỷ số mới (A-B), ví dụ 11-8');if(!s)return;[a,b]=s.split('-').map(Number);if(isNaN(a)||isNaN(b))return alert('Sai định dạng')}
+  run(sb.rpc('admin_set_result',{mid:id,sa:a,sb:b,cancel:!!cancel}))};
+window.mkTour=()=>{const v=id=>$(id).value;if(!v('tn')||!v('ts')||!v('te'))return alert('Nhập đủ thông tin');
+  run(sb.from('tournaments').insert({name:v('tn'),type:v('tt'),pairing:v('tpa'),start_date:v('ts'),end_date:v('te'),affects_rank:$('tr').checked}))};
+window.join=(id,j)=>run(j?sb.from('tournament_players').delete().eq('tournament_id',id).eq('user_id',me.id):sb.from('tournament_players').insert({tournament_id:id,user_id:me.id}));
+window.tst=(id,s)=>run(sb.from('tournaments').update({status:s}).eq('id',id));
+window.draw=async id=>{const t=D.tn.find(x=>x.id===id);let us=D.tp.filter(p=>p.tournament_id===id).map(p=>D.pm[p.user_id]);
+  const gate={MM:'M',FF:'F'}[t.type];if(gate)us=us.filter(u=>u.gender===gate);
+  const key=u=>t.type==='MF'||t.type==='mixed'?overall(u.id):overall(u.id);const rows=[];
+  if(t.type==='team'){const n=Math.max(2,Math.ceil(us.length/4));let k=0;   // snake draft theo rank, cân bằng giới tính
+    for(const g of ['M','F']){us.filter(u=>u.gender===g).sort((a,b)=>key(b)-key(a)).forEach(u=>{const r=Math.floor(k/n),i=k%n;rows.push({tournament_id:id,team_no:(r%2?n-1-i:i)+1,user_id:u.id});k++})}}
+  else if(t.type==='MF'){const m=us.filter(u=>u.gender==='M').sort((a,b)=>key(b)-key(a)),f=us.filter(u=>u.gender==='F').sort((a,b)=>key(b)-key(a));
+    const n=Math.min(m.length,f.length);for(let i=0;i<n;i++){const j=t.pairing==='equal'?i:n-1-i;rows.push({tournament_id:id,team_no:i+1,user_id:m[i].id},{tournament_id:id,team_no:i+1,user_id:f[j].id})}}
+  else{const s=us.sort((a,b)=>key(b)-key(a));const h=Math.floor(s.length/2);
+    if(t.pairing==='equal')for(let i=0;i+1<s.length;i+=2)rows.push({tournament_id:id,team_no:i/2+1,user_id:s[i].id},{tournament_id:id,team_no:i/2+1,user_id:s[i+1].id});
+    else for(let i=0;i<h;i++)rows.push({tournament_id:id,team_no:i+1,user_id:s[i].id},{tournament_id:id,team_no:i+1,user_id:s[s.length-1-i].id})}
+  if(!rows.length)return alert('Chưa đủ người để bốc thăm');
+  await sb.from('entries').delete().eq('tournament_id',id);const r=await sb.from('entries').insert(rows);err(r.error);
+  if(!r.error)await sb.from('tournaments').update({status:'drawn'}).eq('id',id);await load();render()};
 
-// ---- Đăng nhập ----
-const authErr = e => $('#aerr').textContent = e ? e.message : '';
-$('#login').onclick = async () => { const {error} = await db.auth.signInWithPassword({email:$('#email').value.trim(), password:$('#pw').value}); authErr(error); };
-$('#signup').onclick = async () => { const {data, error} = await db.auth.signUp({email:$('#email').value.trim(), password:$('#pw').value}); authErr(error); if (!error && !data.session) $('#aerr').textContent = 'Hãy kiểm tra email để xác nhận tài khoản.'; };
-$('#logout').onclick = () => db.auth.signOut();
-db.auth.onAuthStateChange((_e, s) => { session = s; load(); });
-
-// ---- Giao diện ----
-$('#nav').onclick = e => { const t = e.target.dataset.t; if (!t) return;
-  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.t==t));
-  ['rank','match','sug','mem','me','tour','adm'].forEach(k => $('#t-'+k).hidden = k!=t); };
-$('#mtype').onchange = refresh; $('#stype').onchange = refresh;
-document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
-
-// ---- Thành viên ----
-$('#addMem').onclick = async () => {
-  const name = $('#mname').value.trim(); if (!name) return $('#eerr').textContent = 'Vui lòng nhập tên.';
-  const row = {name, gender:$('#mg').value, user_id: me ? null : session.user.id};
-  const {error} = await db.from('profiles').insert(row);
-  $('#eerr').textContent = error ? (error.code=='23505' ? 'Tên này đã có người đăng ký.' : error.message) : '';
-  if (!error) { $('#mname').value = ''; load(); }
-};
-$('#mlist').onclick = async e => {
-  const d = e.target.dataset, m = members.find(x => x.id==(d.ed||d.rm)); if (!m || !isAdmin()) return;
-  let error;
-  if (d.rm) { if (!confirm('Xóa thành viên '+m.name+' (kèm các trận của họ)?')) return; ({error} = await db.from('profiles').delete().eq('id', m.id)); }
-  else {
-    const name = (prompt('Tên mới', m.name) || '').trim(); if (!name) return;
-    const g = (prompt('Giới tính: M = nam, F = nữ', m.g) || '').toUpperCase(); if (g!='M' && g!='F') return alert('Chỉ nhập M hoặc F');
-    ({error} = await db.from('profiles').update({name, gender:g}).eq('id', m.id));
-  }
-  if (error) alert(error.message); else load();
-};
-
-// ---- Thách đấu ----
-$('#addCh').onclick = async () => {
-  const pt = $('#cp').value, o1 = $('#co1').value, o2 = $('#co2').value, t = $('#ct').value, er = $('#cerr');
-  if (!me) return;
-  if (!pt || !o1 || !o2 || !t) return er.textContent = 'Hãy chọn partner, đôi thách đấu và thời gian.';
-  if (new Set([me.id,pt,o1,o2]).size < 4) return er.textContent = '4 người phải khác nhau.';
-  const when = new Date(t); if (when.getTime() < dayStart()) return er.textContent = 'Thời gian không hợp lệ.';
-  const {error} = await db.from('challenges').insert({p1:me.id, p2:pt, o1, o2, scheduled_at:when.toISOString(), note:$('#cn').value.trim() || null});
-  er.textContent = error ? (/challenges/.test(error.message) ? 'Chưa tạo bảng thách đấu: hãy chạy file schema-update.sql.' : error.message) : '';
-  if (!error) { $('#cn').value = ''; load(); }
-};
-document.addEventListener('click', async e => {
-  const id = e.target.dataset && e.target.dataset.cd; if (!id || !confirm('Xóa kèo này?')) return;
-  const {error} = await db.from('challenges').delete().eq('id', id); if (error) alert(error.message); else load();
-});
-
-// ---- Trận đấu ----
-$('#addMatch').onclick = async () => {
-  const a = [$('#a1').value,$('#a2').value], b = [$('#b1').value,$('#b2').value], sa = +$('#sa').value, sb = +$('#sb').value, er = $('#merr');
-  if ([...a,...b].some(v => !v)) return er.textContent = 'Hãy chọn đủ 4 người chơi.';
-  if (new Set([...a,...b]).size < 4) return er.textContent = 'Mỗi người chỉ xuất hiện một lần.';
-  if ($('#sa').value==='' || $('#sb').value==='' || sa===sb || sa<0 || sb<0) return er.textContent = 'Nhập tỷ số hợp lệ (không hòa).';
-  const g = id => members.find(x => x.id==id).g, type = $('#mtype').value;
-  const ok = type=='MD' ? [...a,...b].every(i => g(i)=='M') : type=='WD' ? [...a,...b].every(i => g(i)=='F') : g(a[0])!=g(a[1]) && g(b[0])!=g(b[1]);
-  if (!ok) return er.textContent = 'Giới tính người chơi không khớp loại đôi.';
-  const {error} = await db.from('matches').insert({type, a1:a[0], a2:a[1], b1:b[0], b2:b[1], sa, sb});
-  er.textContent = error ? error.message : '';
-  if (!error) { $('#sa').value = $('#sb').value = ''; load(); }
-};
-$('#recent').onclick = async e => {
-  const d = e.target.dataset, m = matches.find(x => x.id==(d.del||d.em)); if (!m || !isAdmin()) return;
-  let error;
-  if (d.del) { if (!confirm('Xóa trận này?')) return; ({error} = await db.from('matches').delete().eq('id', m.id)); }
-  else {
-    const v = prompt('Sửa tỷ số (Đội 1-Đội 2), ví dụ 11-8', m.sa+'-'+m.sb); if (!v) return;
-    const [x,y] = v.split('-').map(Number); if (isNaN(x) || isNaN(y) || x===y || x<0 || y<0) return alert('Tỷ số không hợp lệ');
-    ({error} = await db.from('matches').update({sa:x, sb:y}).eq('id', m.id));
-  }
-  if (error) alert(error.message); else load();
-};
-
-refresh(); load();
-</script>
-</body>
-</html>
+const NAV=[['news','Hot news'],['me','Cá nhân'],['result','Nhập kết quả'],['members','Thành viên'],['tour','Giải đấu']];
+function render(){$('nav').innerHTML=NAV.map(([k,l])=>`<button onclick="tab='${k}';render()" ${k===tab?'style="font-weight:700"':''}>${l}</button>`).join('')+'<button onclick="sb.auth.signOut()">Đăng xuất</button>';
+  $('app').innerHTML=views[tab]()}
+function authView(){$('who').textContent='';$('nav').innerHTML='';
+  $('app').innerHTML=`<div class=card><h3>Đăng nhập / Đăng ký</h3><input id=em type=email placeholder=Email><br><input id=pw type=password placeholder="Mật khẩu (≥ 6 ký tự)"><br>
+  <input id=fn placeholder="Họ tên (khi đăng ký)"><select id=gd><option value=M>Nam</option><option value=F>Nữ</option></select><br>
+  <button id=li>Đăng nhập</button><button id=su>Đăng ký</button></div>`;
+  $('li').onclick=async()=>err((await sb.auth.signInWithPassword({email:$('em').value,password:$('pw').value})).error);
+  $('su').onclick=async()=>{if($('pw').value.length<6||!$('fn').value)return alert('Cần họ tên và mật khẩu ≥ 6 ký tự');
+    const r=await sb.auth.signUp({email:$('em').value,password:$('pw').value,options:{data:{full_name:$('fn').value,gender:$('gd').value}}});err(r.error);if(!r.error&&!r.data.session)alert('Kiểm tra email để xác nhận tài khoản')}}
+sb.auth.onAuthStateChange(async(_,s)=>{if(!s)return authView();me={id:s.user.id};await load();render()});
+</script></body></html>
